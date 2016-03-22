@@ -22,21 +22,28 @@
  *
  */
 
-#include "levelset.h"
-#include "node_platonic.h"
-#include "volume.h"
+#pragma once
 
-extern "C" {
+#include <kamikaze/modifiers.h>
 
-void new_kamikaze_objects(ObjectFactory *factory)
-{
-	LevelSet::registerSelf(factory);
-	Volume::registerSelf(factory);
-}
+enum {
+	PLATONIC_SPHERE = 0,
+	PLATONIC_CUBE   = 1,
+};
 
-void new_kamikaze_modifiers(ModifierFactory *factory)
-{
-	NodePlatonic::registerSelf(factory);
-}
+class NodePlatonic : public Modifier {
+	float voxel_size = 0.1f;
+	float half_width = 3.0f;
+	float radius = 2.0f;
+	float center[3] = { 0.0f, 0.0f, 0.0f };
+	int type = PLATONIC_SPHERE;
 
-}
+public:
+	NodePlatonic() = default;
+	~NodePlatonic() = default;
+
+	void setUIParams(ParamCallback *cb) override;
+	void evaluate(Object *ob) override;
+
+	static void registerSelf(ModifierFactory *factory);
+};
