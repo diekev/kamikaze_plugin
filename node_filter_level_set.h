@@ -22,25 +22,23 @@
  *
  */
 
-#include "levelset.h"
-#include "node_filter_level_set.h"
-#include "node_noise.h"
-#include "node_platonic.h"
-#include "volume.h"
+#pragma once
 
-extern "C" {
+#include <kamikaze/modifiers.h>
 
-void new_kamikaze_objects(ObjectFactory *factory)
-{
-	LevelSet::registerSelf(factory);
-	Volume::registerSelf(factory);
-}
+class NodeFilterLevelSet : public Modifier {
+	int m_type = 0;
+	int m_accuracy = 0;
+	int m_iterations = 1;
+	int m_width = 1;
+	float m_offset = 1.0f;
 
-void new_kamikaze_modifiers(ModifierFactory *factory)
-{
-	NodeFilterLevelSet::registerSelf(factory);
-	NodePlatonic::registerSelf(factory);
-	NodeNoise::registerSelf(factory);
-}
+public:
+	NodeFilterLevelSet() = default;
+	~NodeFilterLevelSet() = default;
 
-}
+	void setUIParams(ParamCallback *cb) override;
+	void evaluate(Object *ob) override;
+
+	static void registerSelf(ModifierFactory *factory);
+};
