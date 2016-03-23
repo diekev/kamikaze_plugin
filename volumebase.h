@@ -69,5 +69,10 @@ public:
 	float voxelSize() const;
 	void setVoxelSize(const float voxel_size);
 
+	openvdb::GridBase::Ptr getGridPtr()
+	{
+		return m_grid;
+	}
+
 	TreeTopology *topology() const { return m_topology.get(); }
 };
