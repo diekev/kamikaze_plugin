@@ -22,23 +22,23 @@
  *
  */
 
-#include "levelset.h"
-#include "node_noise.h"
-#include "node_platonic.h"
-#include "volume.h"
+#pragma once
 
-extern "C" {
+#include <kamikaze/modifiers.h>
 
-void new_kamikaze_objects(ObjectFactory *factory)
-{
-	LevelSet::registerSelf(factory);
-	Volume::registerSelf(factory);
-}
+class NodeNoise : public Modifier {
+	int m_octaves = 1;
+    float m_frequency = 1.0f;
+    float m_amplitude = 1.0f;
+    float m_persistence = 1.0f;
+    float m_lacunarity = 2.0f;
 
-void new_kamikaze_modifiers(ModifierFactory *factory)
-{
-	NodePlatonic::registerSelf(factory);
-	NodeNoise::registerSelf(factory);
-}
+public:
+	NodeNoise() = default;
 
-}
+	float evalNoise(float x, float y, float z);
+	void setUIParams(ParamCallback *cb) override;
+	void evaluate(Object *ob) override;
+
+	static void registerSelf(ModifierFactory *factory);
+};
