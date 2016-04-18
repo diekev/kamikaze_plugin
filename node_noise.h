@@ -24,9 +24,9 @@
 
 #pragma once
 
-#include <kamikaze/modifiers.h>
+#include <kamikaze/nodes.h>
 
-class NodeNoise : public Modifier {
+class NodeNoise : public Node {
 	int m_octaves = 1;
     float m_frequency = 1.0f;
     float m_amplitude = 1.0f;
@@ -34,11 +34,11 @@ class NodeNoise : public Modifier {
     float m_lacunarity = 2.0f;
 
 public:
-	NodeNoise() = default;
+	NodeNoise();
 
 	float evalNoise(float x, float y, float z);
 	void setUIParams(ParamCallback *cb) override;
-	void evaluate(Object *ob) override;
+	void process() override;
 
-	static void registerSelf(ModifierFactory *factory);
+	static void registerSelf(NodeFactory *factory);
 };

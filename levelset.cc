@@ -181,7 +181,7 @@ void LevelSet::swapGrids(const bool is_scuplt_mode)
 	}
 }
 
-static Object *create_level_set()
+static Primitive *create_level_set()
 {
 	return new LevelSet();
 }

@@ -31,6 +31,14 @@
 
 #include "levelset.h"
 
+static constexpr auto NODE_NAME = "Platonic (VDB)";
+
+NodePlatonic::NodePlatonic()
+    : Node(NODE_NAME)
+{
+	addOutput("Primitive");
+}
+
 void NodePlatonic::setUIParams(ParamCallback *cb)
 {
 	const char *platonic_type[] = {
@@ -46,9 +54,15 @@ void NodePlatonic::setUIParams(ParamCallback *cb)
 	xyz_param(cb, "Center", center);
 }
 
-void NodePlatonic::evaluate(Object *ob)
+void NodePlatonic::process()
 {
-	LevelSet *level_set = dynamic_cast<LevelSet	*>(ob);
+	auto prim = input(0)->prim;
+
+	if (!prim) {
+		return;
+	}
+
+	LevelSet *level_set = dynamic_cast<LevelSet	*>(prim);
 
 	openvdb::FloatGrid::Ptr grid;
 
@@ -70,14 +84,16 @@ void NodePlatonic::evaluate(Object *ob)
 	}
 
 	level_set->setGrid(grid);
+
+	output(0)->prim = level_set;
 }
 
-static Modifier *new_resample_node()
+static Node *new_resample_node()
 {
 	return new NodePlatonic;
 }
 
-void NodePlatonic::registerSelf(ModifierFactory *factory)
+void NodePlatonic::registerSelf(NodeFactory *factory)
 {
-	factory->registerType("Platonic (VDB)", new_resample_node);
+	factory->registerType(NODE_NAME, new_resample_node);
 }

@@ -36,7 +36,7 @@ void new_kamikaze_objects(ObjectFactory *factory)
 	Volume::registerSelf(factory);
 }
 
-void new_kamikaze_modifiers(ModifierFactory *factory)
+void new_kamikaze_nodes(NodeFactory *factory)
 {
 	NodeFilterLevelSet::registerSelf(factory);
 	NodePlatonic::registerSelf(factory);

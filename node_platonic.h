@@ -24,14 +24,14 @@
 
 #pragma once
 
-#include <kamikaze/modifiers.h>
+#include <kamikaze/nodes.h>
 
 enum {
 	PLATONIC_SPHERE = 0,
 	PLATONIC_CUBE   = 1,
 };
 
-class NodePlatonic : public Modifier {
+class NodePlatonic : public Node {
 	float voxel_size = 0.1f;
 	float half_width = 3.0f;
 	float radius = 2.0f;
@@ -39,11 +39,11 @@ class NodePlatonic : public Modifier {
 	int type = PLATONIC_SPHERE;
 
 public:
-	NodePlatonic() = default;
+	NodePlatonic();
 	~NodePlatonic() = default;
 
 	void setUIParams(ParamCallback *cb) override;
-	void evaluate(Object *ob) override;
+	void process() override;
 
-	static void registerSelf(ModifierFactory *factory);
+	static void registerSelf(NodeFactory *factory);
 };

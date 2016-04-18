@@ -312,7 +312,7 @@ void Volume::useLUT(bool b)
 	m_use_lut = b;
 }
 
-static Object *create_volume()
+static Primitive *create_volume()
 {
 	return new Volume();
 }

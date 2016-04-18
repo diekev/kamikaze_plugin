@@ -24,9 +24,9 @@
 
 #pragma once
 
-#include <kamikaze/modifiers.h>
+#include <kamikaze/nodes.h>
 
-class NodeFilterLevelSet : public Modifier {
+class NodeFilterLevelSet : public Node {
 	int m_type = 0;
 	int m_accuracy = 0;
 	int m_iterations = 1;
@@ -34,11 +34,11 @@ class NodeFilterLevelSet : public Modifier {
 	float m_offset = 1.0f;
 
 public:
-	NodeFilterLevelSet() = default;
+	NodeFilterLevelSet();
 	~NodeFilterLevelSet() = default;
 
 	void setUIParams(ParamCallback *cb) override;
-	void evaluate(Object *ob) override;
+	void process() override;
 
-	static void registerSelf(ModifierFactory *factory);
+	static void registerSelf(NodeFactory *factory);
 };

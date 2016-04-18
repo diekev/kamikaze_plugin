@@ -30,6 +30,8 @@
 
 #include "levelset.h"
 
+static constexpr auto NODE_NAME = "Filter Level Set (VDB)";
+
 enum {
 	LS_FILTER_ACC_FISRT = 0,
 	LS_FILTER_ACC_SECOND,
@@ -46,6 +48,13 @@ enum {
 	LS_FILTER_LAPLACIAN,
 	LS_FILTER_OFFSET,
 };
+
+NodeFilterLevelSet::NodeFilterLevelSet()
+    : Node(NODE_NAME)
+{
+	addInput("Primitive");
+	addOutput("Primitive");
+}
 
 void NodeFilterLevelSet::setUIParams(ParamCallback *cb)
 {
@@ -68,11 +77,17 @@ void NodeFilterLevelSet::setUIParams(ParamCallback *cb)
 	float_param(cb, "Offset", &m_offset, 1.0f, 10.0f, m_offset);
 }
 
-void NodeFilterLevelSet::evaluate(Object *ob)
+void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	auto level_set = static_cast<LevelSet *>(ob);
+	auto prim = input(0)->prim;
+
+	if (!prim) {
+		return;
+	}
+
+	auto level_set = static_cast<LevelSet *>(prim);
 	auto ls_grid = gridPtrCast<FloatGrid>(level_set->getGridPtr());
 
 	typedef tools::LevelSetFilter<FloatGrid> Filter;
@@ -123,14 +138,16 @@ void NodeFilterLevelSet::evaluate(Object *ob)
 	}
 
 	level_set->setGrid(ls_grid);
+
+	output(0)->prim = level_set;
 }
 
-static Modifier *new_filter_node()
+static Node *new_filter_node()
 {
 	return new NodeFilterLevelSet;
 }
 
-void NodeFilterLevelSet::registerSelf(ModifierFactory *factory)
+void NodeFilterLevelSet::registerSelf(NodeFactory *factory)
 {
-	factory->registerType("Filter Level Set (VDB)", new_filter_node);
+	factory->registerType(NODE_NAME, new_filter_node);
 }

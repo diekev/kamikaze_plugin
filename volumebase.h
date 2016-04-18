@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <kamikaze/object.h>
+#include <kamikaze/primitive.h>
 
 #include <openvdb/openvdb.h>
 
@@ -39,7 +39,7 @@ public:
 	void render(ViewerContext *context);
 };
 
-class VolumeBase : public Object {
+class VolumeBase : public Primitive {
 protected:
 	ego::BufferObject::Ptr m_buffer_data;
 	ego::Program m_program;

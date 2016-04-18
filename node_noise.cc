@@ -31,6 +31,15 @@
 
 #include "levelset.h"
 
+static constexpr auto NODE_NAME = "Noise (VDB)";
+
+NodeNoise::NodeNoise()
+    : Node(NODE_NAME)
+{
+	addInput("Primitive");
+	addOutput("Primitive");
+}
+
 float NodeNoise::evalNoise(float x, float y, float z)
 {
 	float output = 0.0f;
@@ -56,12 +65,18 @@ void NodeNoise::setUIParams(ParamCallback *cb)
 	float_param(cb, "Lacunarity", &m_lacunarity, 0.0f, 10.0f, m_lacunarity);
 }
 
-void NodeNoise::evaluate(Object *ob)
+void NodeNoise::process()
 {
+	auto prim = input(0)->prim;
+
+	if (!prim) {
+		return;
+	}
+
 	using CPT = openvdb::math::CPT<openvdb::math::GenericMap, openvdb::math::CD_2ND>;
     using StencilType = openvdb::math::SecondOrderDenseStencil<openvdb::FloatGrid>;
 
-	auto level_set = static_cast<LevelSet *>(ob);
+	auto level_set = static_cast<LevelSet *>(prim);
 	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(level_set->getGridPtr());
 
 	StencilType stencil(*grid); // uses its own grid accessor
@@ -83,14 +98,16 @@ void NodeNoise::evaluate(Object *ob)
 	}
 
 	level_set->setGrid(grid);
+
+	output(0)->prim = level_set;
 }
 
-static Modifier *new_noise_node()
+static Node *new_noise_node()
 {
 	return new NodeNoise;
 }
 
-void NodeNoise::registerSelf(ModifierFactory *factory)
+void NodeNoise::registerSelf(NodeFactory *factory)
 {
-	factory->registerType("Noise (VDB)", new_noise_node);
+	factory->registerType(NODE_NAME, new_noise_node);
 }
