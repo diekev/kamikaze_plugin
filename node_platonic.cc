@@ -27,11 +27,20 @@
 #include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetSphere.h>
-#include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/LevelSetPlatonic.h>
 
 #include "levelset.h"
 
 static constexpr auto NODE_NAME = "Platonic (VDB)";
+
+enum {
+	PLATONIC_SPHERE = 0,
+	PLATONIC_CUBE   = 1,
+	PLATONIC_TETRA  = 2,
+	PLATONIC_OCTA   = 3,
+	PLATONIC_DODE   = 4,
+	PLATONIC_ICOSA  = 5,
+};
 
 NodePlatonic::NodePlatonic()
     : Node(NODE_NAME)
@@ -42,7 +51,8 @@ NodePlatonic::NodePlatonic()
 void NodePlatonic::setUIParams(ParamCallback *cb)
 {
 	const char *platonic_type[] = {
-	    "Sphere", "Cube", nullptr
+	    "Sphere", "Cube", "Tetrahedron", "Octahedron", "Dodecahedron",
+	    "Icosahedron", nullptr
 	};
 
 	enum_param(cb, "Solid Type", &type, platonic_type, type);
@@ -65,14 +75,25 @@ void NodePlatonic::process()
 			              radius, openvdb::Vec3f(center), voxel_size, half_width);
 			break;
 		case PLATONIC_CUBE:
-		{
-			auto xform = openvdb::math::Transform::createLinearTransform(voxel_size);
-
-			grid = openvdb::tools::createLevelSetBox<openvdb::FloatGrid>(
-			           openvdb::BBoxd(radius * openvdb::Vec3f(-1.0f), radius * openvdb::Vec3f(1.0f)),
-			           *xform, half_width);
+			grid = openvdb::tools::createLevelSetCube<openvdb::FloatGrid>(
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
 			break;
-		}
+		case PLATONIC_TETRA:
+			grid = openvdb::tools::createLevelSetTetrahedron<openvdb::FloatGrid>(
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			break;
+		case PLATONIC_OCTA:
+			grid = openvdb::tools::createLevelSetOctahedron<openvdb::FloatGrid>(
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			break;
+		case PLATONIC_DODE:
+			grid = openvdb::tools::createLevelSetDodecahedron<openvdb::FloatGrid>(
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			break;
+		case PLATONIC_ICOSA:
+			grid = openvdb::tools::createLevelSetIcosahedron<openvdb::FloatGrid>(
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			break;
 	}
 
 	LevelSet *level_set = new LevelSet(grid);

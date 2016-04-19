@@ -26,17 +26,12 @@
 
 #include <kamikaze/nodes.h>
 
-enum {
-	PLATONIC_SPHERE = 0,
-	PLATONIC_CUBE   = 1,
-};
-
 class NodePlatonic : public Node {
 	float voxel_size = 0.1f;
 	float half_width = 3.0f;
 	float radius = 2.0f;
 	float center[3] = { 0.0f, 0.0f, 0.0f };
-	int type = PLATONIC_SPHERE;
+	int type = 0;
 
 public:
 	NodePlatonic();
