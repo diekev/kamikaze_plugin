@@ -77,7 +77,7 @@ void NodePlatonic::process()
 
 	LevelSet *level_set = new LevelSet(grid);
 
-	output(0)->prim = level_set;
+	setOutputPrimitive("Primitive", level_set);
 }
 
 static Node *new_resample_node()

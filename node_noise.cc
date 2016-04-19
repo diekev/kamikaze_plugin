@@ -67,9 +67,10 @@ void NodeNoise::setUIParams(ParamCallback *cb)
 
 void NodeNoise::process()
 {
-	auto prim = input(0)->link->prim;
+	auto prim = getInputPrimitive("Primitive");
 
 	if (!prim) {
+		setOutputPrimitive("Primitive", nullptr);
 		return;
 	}
 
@@ -99,7 +100,7 @@ void NodeNoise::process()
 
 	level_set->setGrid(grid);
 
-	output(0)->prim = level_set;
+	setOutputPrimitive("Primitive", level_set);
 }
 
 static Node *new_noise_node()

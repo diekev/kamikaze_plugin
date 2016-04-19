@@ -81,9 +81,10 @@ void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	auto prim = input(0)->link->prim;
+	auto prim = getInputPrimitive("Primitive");
 
 	if (!prim) {
+		setOutputPrimitive("Primitive", nullptr);
 		return;
 	}
 
@@ -139,7 +140,7 @@ void NodeFilterLevelSet::process()
 
 	level_set->setGrid(ls_grid);
 
-	output(0)->prim = level_set;
+	setOutputPrimitive("Primitive", level_set);
 }
 
 static Node *new_filter_node()
