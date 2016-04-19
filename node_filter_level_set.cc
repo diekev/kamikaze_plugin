@@ -53,6 +53,7 @@ NodeFilterLevelSet::NodeFilterLevelSet()
     : Node(NODE_NAME)
 {
 	addInput("Primitive");
+	addInput("Mask");
 	addOutput("Primitive");
 }
 
@@ -91,6 +92,14 @@ void NodeFilterLevelSet::process()
 	auto level_set = static_cast<LevelSet *>(prim);
 	auto ls_grid = gridPtrCast<FloatGrid>(level_set->getGridPtr());
 
+	FloatGrid *mask = nullptr;
+	auto mask_prim = getInputPrimitive("Mask");
+
+	if (mask_prim) {
+		auto mask_ls = static_cast<LevelSet *>(mask_prim);
+		mask = (gridPtrCast<FloatGrid>(mask_ls->getGridPtr())).get();
+	}
+
 	typedef tools::LevelSetFilter<FloatGrid> Filter;
 
 	Filter filter(*ls_grid);
@@ -108,32 +117,32 @@ void NodeFilterLevelSet::process()
 	switch (m_type) {
 		case LS_FILTER_MEDIAN:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.median(m_width, nullptr);
+				filter.median(m_width, mask);
 			}
 			break;
 		case LS_FILTER_MEAN:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.mean(m_width, nullptr);
+				filter.mean(m_width, mask);
 			}
 			break;
 		case LS_FILTER_GAUSSIAN:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.gaussian(m_width, nullptr);
+				filter.gaussian(m_width, mask);
 			}
 			break;
 		case LS_FILTER_MEAN_CURV:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.meanCurvature(nullptr);
+				filter.meanCurvature(mask);
 			}
 			break;
 		case LS_FILTER_LAPLACIAN:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.laplacian(nullptr);
+				filter.laplacian(mask);
 			}
 			break;
 		case LS_FILTER_OFFSET:
 			for (int i = 0; i < m_iterations; ++i) {
-				filter.offset(m_offset, nullptr);
+				filter.offset(m_offset, mask);
 			}
 			break;
 	}
