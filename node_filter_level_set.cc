@@ -81,7 +81,7 @@ void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	auto prim = input(0)->prim;
+	auto prim = input(0)->link->prim;
 
 	if (!prim) {
 		return;

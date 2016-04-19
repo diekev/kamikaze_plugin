@@ -67,7 +67,7 @@ void NodeNoise::setUIParams(ParamCallback *cb)
 
 void NodeNoise::process()
 {
-	auto prim = input(0)->prim;
+	auto prim = input(0)->link->prim;
 
 	if (!prim) {
 		return;

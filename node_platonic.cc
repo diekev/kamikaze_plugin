@@ -56,14 +56,6 @@ void NodePlatonic::setUIParams(ParamCallback *cb)
 
 void NodePlatonic::process()
 {
-	auto prim = input(0)->prim;
-
-	if (!prim) {
-		return;
-	}
-
-	LevelSet *level_set = dynamic_cast<LevelSet	*>(prim);
-
 	openvdb::FloatGrid::Ptr grid;
 
 	switch (type) {
@@ -83,7 +75,7 @@ void NodePlatonic::process()
 		}
 	}
 
-	level_set->setGrid(grid);
+	LevelSet *level_set = new LevelSet(grid);
 
 	output(0)->prim = level_set;
 }
