@@ -22,27 +22,19 @@
  *
  */
 
-#include "levelset.h"
-#include "node_filter_level_set.h"
-#include "node_noise.h"
-#include "node_platonic.h"
-#include "node_write.h"
-#include "volume.h"
+#pragma once
 
-extern "C" {
+#include <kamikaze/nodes.h>
 
-void new_kamikaze_objects(ObjectFactory *factory)
-{
-	LevelSet::registerSelf(factory);
-	Volume::registerSelf(factory);
-}
+class NodeWrite : public Node {
+	std::string m_filename;
 
-void new_kamikaze_nodes(NodeFactory *factory)
-{
-	NodeFilterLevelSet::registerSelf(factory);
-	NodePlatonic::registerSelf(factory);
-	NodeNoise::registerSelf(factory);
-	NodeWrite::registerSelf(factory);
-}
+public:
+	NodeWrite();
+	~NodeWrite() = default;
 
-}
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
+
+	static void registerSelf(NodeFactory *factory);
+};

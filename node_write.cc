@@ -22,27 +22,55 @@
  *
  */
 
-#include "levelset.h"
-#include "node_filter_level_set.h"
-#include "node_noise.h"
-#include "node_platonic.h"
 #include "node_write.h"
-#include "volume.h"
 
-extern "C" {
+#include <kamikaze/paramfactory.h>
 
-void new_kamikaze_objects(ObjectFactory *factory)
+#include "levelset.h"
+
+static constexpr auto NODE_NAME = "OpenVDB Write";
+
+NodeWrite::NodeWrite()
+    : Node(NODE_NAME)
 {
-	LevelSet::registerSelf(factory);
-	Volume::registerSelf(factory);
+	addInput("Primitive");
+	addOutput("Primitive");
 }
 
-void new_kamikaze_nodes(NodeFactory *factory)
+void NodeWrite::setUIParams(ParamCallback *cb)
 {
-	NodeFilterLevelSet::registerSelf(factory);
-	NodePlatonic::registerSelf(factory);
-	NodeNoise::registerSelf(factory);
-	NodeWrite::registerSelf(factory);
+	file_param(cb, "File Path", &m_filename);
 }
 
+void NodeWrite::process()
+{
+	auto prim = getInputPrimitive("Primitive");
+
+	/* for now just forward the primitive, since kamikaze does not support
+	 * multiple output nodes in a giving graph */
+
+	setOutputPrimitive("Primitive", prim);
+
+	if (!prim || m_filename.empty()) {
+		return;
+	}
+
+	auto ls = static_cast<LevelSet *>(prim);
+
+	openvdb::io::File file(m_filename);
+	openvdb::GridCPtrVec grids;
+
+	grids.push_back(ls->getGridPtr()->deepCopyGrid());
+
+	file.write(grids);
+}
+
+static Node *new_write_node()
+{
+	return new NodeWrite;
+}
+
+void NodeWrite::registerSelf(NodeFactory *factory)
+{
+	factory->registerType("VDB", NODE_NAME, new_write_node);
 }
