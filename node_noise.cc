@@ -110,5 +110,5 @@ static Node *new_noise_node()
 
 void NodeNoise::registerSelf(NodeFactory *factory)
 {
-	factory->registerType(NODE_NAME, new_noise_node);
+	factory->registerType("VDB", NODE_NAME, new_noise_node);
 }

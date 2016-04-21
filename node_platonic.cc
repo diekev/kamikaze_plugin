@@ -108,5 +108,5 @@ static Node *new_resample_node()
 
 void NodePlatonic::registerSelf(NodeFactory *factory)
 {
-	factory->registerType(NODE_NAME, new_resample_node);
+	factory->registerType("VDB", NODE_NAME, new_resample_node);
 }

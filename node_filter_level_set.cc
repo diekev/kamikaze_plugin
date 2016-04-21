@@ -159,5 +159,5 @@ static Node *new_filter_node()
 
 void NodeFilterLevelSet::registerSelf(NodeFactory *factory)
 {
-	factory->registerType(NODE_NAME, new_filter_node);
+	factory->registerType("VDB", NODE_NAME, new_filter_node);
 }
