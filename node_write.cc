@@ -34,22 +34,24 @@ NodeWrite::NodeWrite()
     : Node(NODE_NAME)
 {
 	addInput("Primitive");
-	addOutput("Primitive");
 }
 
 void NodeWrite::setUIParams(ParamCallback *cb)
 {
 	file_param(cb, "File Path", &m_filename);
+
+	const char *compression_items[] = {
+	    "zip", "blosc", "none", nullptr
+	};
+
+	enum_param(cb, "Compression", &m_compression, compression_items, 0);
+
+	bool_param(cb, "Save as Half floats", &m_save_as_half, false);
 }
 
 void NodeWrite::process()
 {
 	auto prim = getInputPrimitive("Primitive");
-
-	/* for now just forward the primitive, since kamikaze does not support
-	 * multiple output nodes in a giving graph */
-
-	setOutputPrimitive("Primitive", prim);
 
 	if (!prim || m_filename.empty()) {
 		return;
@@ -58,11 +60,32 @@ void NodeWrite::process()
 	auto ls = static_cast<LevelSet *>(prim);
 
 	openvdb::io::File file(m_filename);
+
+	switch (m_compression) {
+		default:
+		case 0:
+			file.setCompression(openvdb::io::COMPRESS_ZIP);
+			break;
+		case 1:
+			file.setCompression(openvdb::io::COMPRESS_BLOSC);
+			break;
+		case 2:
+			file.setCompression(openvdb::io::COMPRESS_NONE);
+			break;
+	}
+
+	if (m_save_as_half) {
+		ls->getGridPtr()->setSaveFloatAsHalf(true);
+	}
+
+	openvdb::MetaMap metadatas;
+    metadatas.insertMeta("creator", openvdb::StringMetadata("Kamikaze/OpenVDBWriter"));
+
 	openvdb::GridCPtrVec grids;
 
 	grids.push_back(ls->getGridPtr()->deepCopyGrid());
 
-	file.write(grids);
+	file.write(grids, metadatas);
 }
 
 static Node *new_write_node()

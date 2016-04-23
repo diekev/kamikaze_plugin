@@ -28,6 +28,8 @@
 
 class NodeWrite : public Node {
 	std::string m_filename;
+	int m_compression;
+	bool m_save_as_half;
 
 public:
 	NodeWrite();
