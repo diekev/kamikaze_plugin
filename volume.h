@@ -55,5 +55,7 @@ public:
 	void numSlices(int x);
 	void useLUT(bool b);
 
+	Primitive *copy() const override;
+
 	static void registerSelf(ObjectFactory *factory);
 };

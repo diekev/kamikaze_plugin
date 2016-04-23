@@ -56,5 +56,7 @@ public:
 
 	void swapGrids(const bool is_scuplt_mode);
 
+	Primitive *copy() const override;
+
 	static void registerSelf(ObjectFactory *factory);
 };

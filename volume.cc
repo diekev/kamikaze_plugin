@@ -312,6 +312,12 @@ void Volume::useLUT(bool b)
 	m_use_lut = b;
 }
 
+Primitive *Volume::copy() const
+{
+	Volume *volume = new Volume(this->m_grid->deepCopyGrid());
+	return volume;
+}
+
 static Primitive *create_volume()
 {
 	return new Volume();

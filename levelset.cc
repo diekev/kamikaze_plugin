@@ -181,6 +181,12 @@ void LevelSet::swapGrids(const bool is_scuplt_mode)
 	}
 }
 
+Primitive *LevelSet::copy() const
+{
+	LevelSet *ls = new LevelSet(this->m_grid->deepCopyGrid());
+	return ls;
+}
+
 static Primitive *create_level_set()
 {
 	return new LevelSet();
