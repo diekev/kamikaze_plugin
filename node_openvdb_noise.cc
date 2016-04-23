@@ -22,8 +22,7 @@
  *
  */
 
-#include "node_noise.h"
-
+#include <kamikaze/nodes.h>
 #include <kamikaze/noise.h>
 #include <kamikaze/paramfactory.h>
 
@@ -31,7 +30,22 @@
 
 #include "levelset.h"
 
-static constexpr auto NODE_NAME = "Noise (VDB)";
+static constexpr auto NODE_NAME = "OpenVDB Noise";
+
+class NodeNoise : public Node {
+	int m_octaves = 1;
+    float m_frequency = 1.0f;
+    float m_amplitude = 1.0f;
+    float m_persistence = 1.0f;
+    float m_lacunarity = 2.0f;
+
+public:
+	NodeNoise();
+
+	float evalNoise(float x, float y, float z);
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
+};
 
 NodeNoise::NodeNoise()
     : Node(NODE_NAME)
@@ -108,7 +122,11 @@ static Node *new_noise_node()
 	return new NodeNoise;
 }
 
-void NodeNoise::registerSelf(NodeFactory *factory)
+extern "C" {
+
+void new_kamikaze_node(NodeFactory *factory)
 {
 	factory->registerType("VDB", NODE_NAME, new_noise_node);
+}
+
 }

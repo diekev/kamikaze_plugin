@@ -22,8 +22,7 @@
  *
  */
 
-#include "node_platonic.h"
-
+#include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetSphere.h>
@@ -31,7 +30,7 @@
 
 #include "levelset.h"
 
-static constexpr auto NODE_NAME = "Platonic (VDB)";
+static constexpr auto NODE_NAME = "OpenVDB Platonic";
 
 enum {
 	PLATONIC_SPHERE = 0,
@@ -40,6 +39,21 @@ enum {
 	PLATONIC_OCTA   = 3,
 	PLATONIC_DODE   = 4,
 	PLATONIC_ICOSA  = 5,
+};
+
+class NodePlatonic : public Node {
+	float voxel_size = 0.1f;
+	float half_width = 3.0f;
+	float radius = 2.0f;
+	float center[3] = { 0.0f, 0.0f, 0.0f };
+	int type = PLATONIC_SPHERE;
+
+public:
+	NodePlatonic();
+	~NodePlatonic() = default;
+
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
 };
 
 NodePlatonic::NodePlatonic()
@@ -72,7 +86,7 @@ void NodePlatonic::process()
 		default:
 		case PLATONIC_SPHERE:
 			grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
-			              radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(center), voxel_size, half_width);
 			break;
 		case PLATONIC_CUBE:
 			grid = openvdb::tools::createLevelSetCube<openvdb::FloatGrid>(
@@ -101,12 +115,16 @@ void NodePlatonic::process()
 	setOutputPrimitive("Primitive", level_set);
 }
 
-static Node *new_resample_node()
+static Node *new_platonic_node()
 {
 	return new NodePlatonic;
 }
 
-void NodePlatonic::registerSelf(NodeFactory *factory)
+extern "C" {
+
+void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_resample_node);
+	factory->registerType("VDB", NODE_NAME, new_platonic_node);
+}
+
 }

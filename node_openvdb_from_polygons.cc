@@ -22,9 +22,8 @@
  *
  */
 
-#include "node_from_polygons.h"
-
 #include <kamikaze/mesh.h>
+#include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
 #include <openvdb/openvdb.h>
@@ -32,7 +31,21 @@
 
 #include "levelset.h"
 
-static constexpr auto NODE_NAME = "VDB From Polygons";
+static constexpr auto NODE_NAME = "OpenVDB From Polygons";
+
+class NodeFromPolygons : public Node {
+	float m_voxel_size = 0.1f;
+	int m_int_band = 3;
+	int m_ext_band = 3;
+
+public:
+	NodeFromPolygons();
+	~NodeFromPolygons() = default;
+
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
+};
+
 
 NodeFromPolygons::NodeFromPolygons()
     : Node(NODE_NAME)
@@ -96,12 +109,16 @@ void NodeFromPolygons::process()
 	setOutputPrimitive("VDB", output_prim);
 }
 
-static Node *new_node()
+static Node *new_from_polygons_node()
 {
 	return new NodeFromPolygons;
 }
 
-void NodeFromPolygons::registerSelf(NodeFactory *factory)
+extern "C" {
+
+void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_node);
+	factory->registerType("VDB", NODE_NAME, new_from_polygons_node);
+}
+
 }

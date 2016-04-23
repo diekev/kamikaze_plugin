@@ -23,10 +23,6 @@
  */
 
 #include "levelset.h"
-#include "node_filter_level_set.h"
-#include "node_noise.h"
-#include "node_platonic.h"
-#include "node_write.h"
 #include "volume.h"
 
 extern "C" {
@@ -35,14 +31,6 @@ void new_kamikaze_objects(ObjectFactory *factory)
 {
 	LevelSet::registerSelf(factory);
 	Volume::registerSelf(factory);
-}
-
-void new_kamikaze_nodes(NodeFactory *factory)
-{
-	NodeFilterLevelSet::registerSelf(factory);
-	NodePlatonic::registerSelf(factory);
-	NodeNoise::registerSelf(factory);
-	NodeWrite::registerSelf(factory);
 }
 
 }

@@ -22,13 +22,25 @@
  *
  */
 
-#include "node_write.h"
-
+#include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
 #include "levelset.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Write";
+
+class NodeWrite : public Node {
+	std::string m_filename;
+	int m_compression;
+	bool m_save_as_half;
+
+public:
+	NodeWrite();
+	~NodeWrite() = default;
+
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
+};
 
 NodeWrite::NodeWrite()
     : Node(NODE_NAME)
@@ -93,7 +105,11 @@ static Node *new_write_node()
 	return new NodeWrite;
 }
 
-void NodeWrite::registerSelf(NodeFactory *factory)
+extern "C" {
+
+void new_kamikaze_node(NodeFactory *factory)
 {
 	factory->registerType("VDB", NODE_NAME, new_write_node);
+}
+
 }

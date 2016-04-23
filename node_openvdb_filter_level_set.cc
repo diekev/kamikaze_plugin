@@ -22,15 +22,29 @@
  *
  */
 
-#include "node_filter_level_set.h"
-
+#include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetFilter.h>
 
 #include "levelset.h"
 
-static constexpr auto NODE_NAME = "Filter Level Set (VDB)";
+static constexpr auto NODE_NAME = "OpenVDB Filter Level Set";
+
+class NodeFilterLevelSet : public Node {
+	int m_type = 0;
+	int m_accuracy = 0;
+	int m_iterations = 1;
+	int m_width = 1;
+	float m_offset = 1.0f;
+
+public:
+	NodeFilterLevelSet();
+	~NodeFilterLevelSet() = default;
+
+	void setUIParams(ParamCallback *cb) override;
+	void process() override;
+};
 
 enum {
 	LS_FILTER_ACC_FISRT = 0,
@@ -157,7 +171,11 @@ static Node *new_filter_node()
 	return new NodeFilterLevelSet;
 }
 
-void NodeFilterLevelSet::registerSelf(NodeFactory *factory)
+extern "C" {
+
+void new_kamikaze_node(NodeFactory *factory)
 {
 	factory->registerType("VDB", NODE_NAME, new_filter_node);
+}
+
 }
