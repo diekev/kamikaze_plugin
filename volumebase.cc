@@ -254,7 +254,7 @@ void VDBVolume::prepareRenderData()
 
 		process_grid_real(m_grid, m_storage, op);
 
-		m_volume_texture = ego::Texture3D::create(m_num_textures++);
+		m_volume_texture = ego::Texture3D::create(0);
 		m_volume_texture->bind();
 		m_volume_texture->setType(GL_FLOAT, GL_RED, GL_RED);
 		m_volume_texture->setMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
@@ -353,7 +353,7 @@ void VDBVolume::loadShader()
 			m_program.addUniform("matrix");
 
 			glUniform1i(m_program("volume"), m_volume_texture->number());
-			glUniform1i(m_program("lut"), m_transfer_texture->number());
+//			glUniform1i(m_program("lut"), m_transfer_texture->number());
 			glUniform1f(m_program("scale"), m_value_scale);
 		}
 		m_program.disable();
@@ -487,16 +487,16 @@ void VDBVolume::render(ViewerContext *context, const bool for_outline)
 			m_program.enable();
 			m_buffer_data->bind();
 			m_volume_texture->bind();
-			m_transfer_texture->bind();
+//			m_transfer_texture->bind();
 
 			auto min = m_min * glm::mat3(m_inv_matrix);
 			glUniform3fv(m_program("offset"), 1, &min[0]);
 			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context->MVP()));
 			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
-			glUniform1i(m_program("use_lut"), m_use_lut);
+//			glUniform1i(m_program("use_lut"), m_use_lut);
 			glDrawElements(m_draw_type, m_elements, GL_UNSIGNED_INT, nullptr);
 
-			m_transfer_texture->unbind();
+//			m_transfer_texture->unbind();
 			m_volume_texture->unbind();
 			m_buffer_data->unbind();
 			m_program.disable();

@@ -98,9 +98,10 @@ struct SparseToDenseOp {
 			max_array.push_back(max_value);
 		});
 
-		auto min_value = std::min_element(min_array.begin(), min_array.end());
-		auto max_value = std::max_element(max_array.begin(), max_array.end());
-		scale = 1.0f / (*max_value - *min_value);
+//		auto min_value = std::min_element(min_array.begin(), min_array.end());
+//		auto max_value = std::max_element(max_array.begin(), max_array.end());
+//		scale = 1.0f / (*max_value - *min_value);
+		scale = 1.0f;
 	}
 };
 
