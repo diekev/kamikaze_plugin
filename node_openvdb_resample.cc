@@ -21,6 +21,7 @@
  * ***** END GPL LICENSE BLOCK *****
  *
  */
+
 #include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
@@ -30,15 +31,6 @@
 #include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Resample";
-
-enum {
-	PLATONIC_SPHERE = 0,
-	PLATONIC_CUBE   = 1,
-	PLATONIC_TETRA  = 2,
-	PLATONIC_OCTA   = 3,
-	PLATONIC_DODE   = 4,
-	PLATONIC_ICOSA  = 5,
-};
 
 class NodeResample : public Node {
 	float voxel_size = 0.1f;

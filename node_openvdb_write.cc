@@ -45,7 +45,7 @@ public:
 NodeWrite::NodeWrite()
     : Node(NODE_NAME)
 {
-	addInput("Primitive");
+	addInput("VDB");
 }
 
 void NodeWrite::setUIParams(ParamCallback *cb)
@@ -63,7 +63,7 @@ void NodeWrite::setUIParams(ParamCallback *cb)
 
 void NodeWrite::process()
 {
-	auto prim = getInputPrimitive("Primitive");
+	auto prim = getInputPrimitive("VDB");
 
 	if (!prim || m_filename.empty()) {
 		return;

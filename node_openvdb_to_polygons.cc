@@ -73,7 +73,7 @@ void NodeToPolygons::process()
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
 	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("Primitive", nullptr);
+		setOutputPrimitive("Mesh", nullptr);
 		return;
 	}
 

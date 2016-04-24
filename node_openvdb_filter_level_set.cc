@@ -66,9 +66,9 @@ enum {
 NodeFilterLevelSet::NodeFilterLevelSet()
     : Node(NODE_NAME)
 {
-	addInput("Primitive");
-	addInput("Mask");
-	addOutput("Primitive");
+	addInput("VDB");
+	addInput("VDB Mask");
+	addOutput("VDB");
 }
 
 void NodeFilterLevelSet::setUIParams(ParamCallback *cb)
@@ -96,24 +96,24 @@ void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	auto prim = getInputPrimitive("Primitive");
+	auto prim = getInputPrimitive("VDB");
 
 	if (!prim) {
-		setOutputPrimitive("Primitive", nullptr);
+		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
 
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
 	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("Primitive", nullptr);
+		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
 
 	auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 
 	FloatGrid *mask = nullptr;
-	auto mask_prim = getInputPrimitive("Mask");
+	auto mask_prim = getInputPrimitive("VDB Mask");
 
 	if (mask_prim) {
 		auto mask_ls = static_cast<VDBVolume *>(mask_prim);
@@ -169,7 +169,7 @@ void NodeFilterLevelSet::process()
 
 	vdb_prim->setGrid(ls_grid);
 
-	setOutputPrimitive("Primitive", vdb_prim);
+	setOutputPrimitive("VDB", vdb_prim);
 }
 
 static Node *new_filter_node()

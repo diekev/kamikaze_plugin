@@ -59,7 +59,7 @@ public:
 NodePlatonic::NodePlatonic()
     : Node(NODE_NAME)
 {
-	addOutput("Primitive");
+	addOutput("VDB");
 }
 
 void NodePlatonic::setUIParams(ParamCallback *cb)
@@ -111,7 +111,7 @@ void NodePlatonic::process()
 	}
 
 	auto prim = new VDBVolume(grid);
-	setOutputPrimitive("Primitive", prim);
+	setOutputPrimitive("VDB", prim);
 }
 
 static Node *new_platonic_node()

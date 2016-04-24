@@ -50,8 +50,8 @@ public:
 NodeNoise::NodeNoise()
     : Node(NODE_NAME)
 {
-	addInput("Primitive");
-	addOutput("Primitive");
+	addInput("VDB");
+	addOutput("VDB");
 }
 
 float NodeNoise::evalNoise(float x, float y, float z)
@@ -81,17 +81,17 @@ void NodeNoise::setUIParams(ParamCallback *cb)
 
 void NodeNoise::process()
 {
-	auto prim = getInputPrimitive("Primitive");
+	auto prim = getInputPrimitive("VDB");
 
 	if (!prim) {
-		setOutputPrimitive("Primitive", nullptr);
+		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
 
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
 	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("Primitive", nullptr);
+		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
 
@@ -100,10 +100,10 @@ void NodeNoise::process()
 
 	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
-	StencilType stencil(*grid); // uses its own grid accessor
+	StencilType stencil(*grid);  /* uses its own grid accessor */
 
 	const auto &xform = grid->transform();
-	openvdb::Vec3R worldPt; // world coordinates
+	openvdb::Vec3R worldPt;  /* world coordinates  */
 	openvdb::math::GenericMap map(*grid);
 	float noise;
 
@@ -120,7 +120,7 @@ void NodeNoise::process()
 
 	vdb_prim->setGrid(grid);
 
-	setOutputPrimitive("Primitive", vdb_prim);
+	setOutputPrimitive("VDB", vdb_prim);
 }
 
 static Node *new_noise_node()
