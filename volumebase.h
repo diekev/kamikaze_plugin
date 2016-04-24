@@ -77,6 +77,11 @@ public:
 		return m_grid;
 	}
 
+	openvdb::GridBase &getGrid()
+	{
+		return *m_grid;
+	}
+
 	int storage() const;
 
 	Primitive *copy() const override;
