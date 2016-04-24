@@ -68,16 +68,11 @@ set(OPENVDB_LIBRARIES
 )
 
 set(VDB_PRIM_SRC
-	levelset.cc
-	main.cc
 	util_openvdb.cc
-	volume.cc
 	volumebase.cc
 
-	levelset.h
 	util_openvdb.h
 	util_openvdb_process.h
-	volume.h
 	volumebase.h
 )
 
@@ -99,6 +94,7 @@ set(NODE_SRC
 	node_openvdb_from_polygons.cc
 	node_openvdb_noise.cc
 	node_openvdb_platonic.cc
+	node_openvdb_resample.cc
 	node_openvdb_to_polygons.cc
 	node_openvdb_write.cc
 )

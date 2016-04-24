@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <ego/texture.h>
 #include <kamikaze/primitive.h>
 
 #include <openvdb/openvdb.h>
@@ -39,40 +40,62 @@ public:
 	void render(ViewerContext *context);
 };
 
-class VolumeBase : public Primitive {
-protected:
+class VDBVolume : public Primitive {
+	std::unique_ptr<TreeTopology> m_topology;
 	ego::BufferObject::Ptr m_buffer_data;
 	ego::Program m_program;
 	size_t m_elements;
 
-	std::vector<glm::vec3> m_vertices;
-	std::unique_ptr<TreeTopology> m_topology;
-
 	openvdb::GridBase::Ptr m_grid;
 	openvdb::Mat4R m_volume_matrix;  /* original volume matrix */
 
-	float m_voxel_size;
-	bool m_topology_changed, m_draw_topology;
+	bool m_draw_topology = false;
+	bool m_need_draw_update = false;
+	int m_storage;
 
-	void updateGridTransform();
-	void resampleGridVoxel();
+	/* for volume rendering */
 
-	void setupData(openvdb::GridBase::Ptr grid);
+	ego::Texture3D::Ptr m_volume_texture;
+	ego::Texture1D::Ptr m_transfer_texture;
+
+	int m_num_slices = 128;
+
+	int m_axis = -1;
+	float m_value_scale = 1.0f; // scale of the values contained in the grid (1 / (max - min))
+	bool m_use_lut = false;
+	char m_num_textures = 0;
 
 public:
-	VolumeBase();
-	explicit VolumeBase(openvdb::GridBase::Ptr grid);
-	~VolumeBase() = default;
+	VDBVolume() = default;
+	explicit VDBVolume(openvdb::GridBase::Ptr grid);
+	~VDBVolume() = default;
 
-	void update() override;
-
-	float voxelSize() const;
-	void setVoxelSize(const float voxel_size);
+	void setGrid(openvdb::GridBase::Ptr grid);
 
 	openvdb::GridBase::Ptr getGridPtr()
 	{
 		return m_grid;
 	}
 
-	TreeTopology *topology() const { return m_topology.get(); }
+	int storage() const;
+
+	Primitive *copy() const override;
+
+	void update() override;
+
+	void render(ViewerContext *context, const bool for_outline) override;
+	void setCustomUIParams(ParamCallback *cb) override;
+
+	static void registerSelf(ObjectFactory *factory);
+
+private:
+	void loadShader();
+	void prepareRenderData();
+	void updateGridTransform();
+	void slice(const glm::vec3 &view_dir);
 };
+
+inline bool is_level_set(VDBVolume *vol)
+{
+	return vol->getGridPtr()->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET;
+}

@@ -27,7 +27,7 @@
 
 #include <openvdb/tools/LevelSetFilter.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Filter Level Set";
 
@@ -103,14 +103,20 @@ void NodeFilterLevelSet::process()
 		return;
 	}
 
-	auto level_set = static_cast<LevelSet *>(prim);
-	auto ls_grid = gridPtrCast<FloatGrid>(level_set->getGridPtr());
+	auto vdb_prim = static_cast<VDBVolume *>(prim);
+
+	if (!is_level_set(vdb_prim)) {
+		setOutputPrimitive("Primitive", nullptr);
+		return;
+	}
+
+	auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 
 	FloatGrid *mask = nullptr;
 	auto mask_prim = getInputPrimitive("Mask");
 
 	if (mask_prim) {
-		auto mask_ls = static_cast<LevelSet *>(mask_prim);
+		auto mask_ls = static_cast<VDBVolume *>(mask_prim);
 		mask = (gridPtrCast<FloatGrid>(mask_ls->getGridPtr())).get();
 	}
 
@@ -161,9 +167,9 @@ void NodeFilterLevelSet::process()
 			break;
 	}
 
-	level_set->setGrid(ls_grid);
+	vdb_prim->setGrid(ls_grid);
 
-	setOutputPrimitive("Primitive", level_set);
+	setOutputPrimitive("Primitive", vdb_prim);
 }
 
 static Node *new_filter_node()

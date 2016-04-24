@@ -28,11 +28,14 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <kamikaze/context.h>
+#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/GridTransformer.h>
 
 #include "util_openvdb.h"
 #include "util_openvdb_process.h"
+
+const int MAX_SLICES = 512;
 
 struct TreeTopologyOp {
 	std::vector<glm::vec3> vertices;
@@ -186,51 +189,94 @@ void TreeTopology::render(ViewerContext *context)
 	}
 }
 
-VolumeBase::VolumeBase()
-    : m_buffer_data(nullptr)
-    , m_elements(0)
-    , m_topology(nullptr)
-    , m_draw_topology(false)
-{}
-
-void VolumeBase::setupData(openvdb::GridBase::Ptr grid)
+VDBVolume::VDBVolume(openvdb::GridBase::Ptr grid)
 {
-	using namespace openvdb;
-	using namespace openvdb::math;
+	setGrid(grid);
+}
 
+void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
+{
 	m_grid = grid;
 	m_volume_matrix = m_grid->transform().baseMap()->getAffineMap()->getMat4();
-	m_voxel_size = m_grid->transform().voxelSize()[0];
-	m_topology_changed = false;
+	m_storage = get_grid_storage(*m_grid);
 
-	CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+	const auto &bbox = m_grid->evalActiveVoxelBoundingBox();
 
-	BBoxd ws_bbox = m_grid->transform().indexToWorld(bbox);
-	Vec3f min = ws_bbox.min();
-	Vec3f max = ws_bbox.max();
+	const auto &ws_bbox = m_grid->transform().indexToWorld(bbox);
+	const auto &min = ws_bbox.min();
+	const auto &max = ws_bbox.max();
 
 	m_min = convertOpenVDBVec(min);
 	m_max = convertOpenVDBVec(max);
 	m_dimensions = (m_max - m_min);
+
 	updateMatrix();
 
 	m_bbox = std::unique_ptr<Cube>(new Cube(m_min, m_max));
 	m_buffer_data = ego::BufferObject::create();
 	m_topology = std::unique_ptr<TreeTopology>(new TreeTopology(grid));
+
+	m_need_draw_update = true;
 }
 
-VolumeBase::VolumeBase(openvdb::GridBase::Ptr grid)
-    : VolumeBase()
+void VDBVolume::prepareRenderData()
 {
-	using namespace openvdb;
-	using namespace openvdb::math;
+	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
+		loadShader();
 
-	setupData(grid);
+		VolumeMesherOp op;
+		op.inv_mat = m_inv_matrix;
+
+		process_grid_real(m_grid, m_storage, op);
+
+		m_elements = op.indices.size();
+
+		m_buffer_data.reset(new ego::BufferObject());
+		m_buffer_data->bind();
+		m_buffer_data->generateVertexBuffer(&op.vertices[0][0], op.vertices.size() * sizeof(glm::vec3));
+		m_buffer_data->generateIndexBuffer(&op.indices[0], m_elements * sizeof(GLuint));
+		m_buffer_data->attribPointer(m_program["vertex"], 3);
+		m_buffer_data->generateNormalBuffer(&op.normals[0], op.normals.size() * sizeof(GLfloat));
+		m_buffer_data->attribPointer(m_program["normal"], 3);
+		m_buffer_data->unbind();
+
+		ego::util::GPU_check_errors("Unable to create level set buffer");
+	}
+	else {
+		m_elements = m_num_slices * 6;
+
+		/* Get resolution & copy data */
+		openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+
+		SparseToDenseOp op;
+		op.bbox = bbox;
+		op.data = new GLfloat[bbox.volume()];
+
+		process_grid_real(m_grid, m_storage, op);
+
+		m_volume_texture = ego::Texture3D::create(m_num_textures++);
+		m_volume_texture->bind();
+		m_volume_texture->setType(GL_FLOAT, GL_RED, GL_RED);
+		m_volume_texture->setMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
+		m_volume_texture->setWrapping(GL_CLAMP_TO_BORDER);
+		m_volume_texture->fill(op.data, bbox.dim().asPointer());
+		m_volume_texture->generateMipMap(0, 4);
+		m_volume_texture->unbind();
+
+		ego::util::GPU_check_errors("Unable to create 3D texture");
+
+		loadShader();
+	}
 }
 
-void VolumeBase::update()
+int VDBVolume::storage() const
 {
-	if (m_need_update) {
+	return m_storage;
+}
+
+void VDBVolume::update()
+{
+	if (m_grid.get() && m_need_update) {
 		updateMatrix();
 		updateGridTransform();
 		m_bbox.reset(new Cube(m_min, m_max));
@@ -238,25 +284,7 @@ void VolumeBase::update()
 	}
 }
 
-float VolumeBase::voxelSize() const
-{
-	return m_voxel_size;
-}
-
-void VolumeBase::setVoxelSize(const float voxel_size)
-{
-	if (voxel_size == 0.0f) {
-		return;
-	}
-
-	if (m_voxel_size != voxel_size) {
-		m_voxel_size = voxel_size;
-		resampleGridVoxel();
-		m_topology_changed = true;
-	}
-}
-
-void VolumeBase::updateGridTransform()
+void VDBVolume::updateGridTransform()
 {
 	typedef openvdb::math::AffineMap AffineMap;
 	typedef openvdb::math::Transform Transform;
@@ -284,52 +312,313 @@ void VolumeBase::updateGridTransform()
 	}
 }
 
-struct ResampleGridOp {
-	const float voxel_size;
-
-	explicit ResampleGridOp(const float vsize)
-	    : voxel_size(vsize)
-	{}
-
-	template <typename GridType>
-	void operator()(typename GridType::Ptr grid)
-	{
-		using namespace openvdb;
-
-		typedef typename GridType::ValueType ValueType;
-		typedef math::Transform Transform;
-
-		Transform::Ptr xform = Transform::createLinearTransform(voxel_size);
-		typename GridType::Ptr output;
-
-		if (grid->getGridClass() == GRID_LEVEL_SET) {
-			const float halfwidth = grid->background() * (1.0f / grid->transform().voxelSize()[0]);
-			util::NullInterrupter interrupt;
-
-			output = tools::doLevelSetRebuild(*grid, zeroVal<ValueType>(),
-			                                  halfwidth, halfwidth,
-			                                  xform.get(), &interrupt);
-		}
-		else {
-			output = GridType::create(grid->background());
-			output->setTransform(xform);
-			output->setName(grid->getName());
-			output->setGridClass(grid->getGridClass());
-
-			tools::resampleToMatch<openvdb::tools::PointSampler>(*grid, *output);
-		}
-
-		grid.swap(output);
-	}
-};
-
-void VolumeBase::resampleGridVoxel()
+Primitive *VDBVolume::copy() const
 {
-	ResampleGridOp op(m_voxel_size);
+	return new VDBVolume(m_grid->deepCopyGrid());
+}
 
-	process_grid_real(m_grid, get_grid_storage(*m_grid), op);
+void VDBVolume::loadShader()
+{
+	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
+		m_program.load(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/object.vert"));
+		m_program.load(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/object.frag"));
+		m_program.createAndLinkProgram();
 
-	if (m_draw_topology) {
-		m_topology.reset(new TreeTopology(m_grid));
+		m_program.enable();
+		{
+			m_program.addAttribute("vertex");
+			m_program.addAttribute("normal");
+			m_program.addUniform("matrix");
+			m_program.addUniform("MVP");
+			m_program.addUniform("N");
+			m_program.addUniform("for_outline");
+		}
+		m_program.disable();
+	}
+	else {
+		m_program.load(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/volume.vert"));
+		m_program.load(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/volume.frag"));
+
+		m_program.createAndLinkProgram();
+
+		m_program.enable();
+		{
+			m_program.addAttribute("vertex");
+			m_program.addUniform("MVP");
+			m_program.addUniform("offset");
+			m_program.addUniform("volume");
+			m_program.addUniform("lut");
+			m_program.addUniform("use_lut");
+			m_program.addUniform("scale");
+			m_program.addUniform("matrix");
+
+			glUniform1i(m_program("volume"), m_volume_texture->number());
+			glUniform1i(m_program("lut"), m_transfer_texture->number());
+			glUniform1f(m_program("scale"), m_value_scale);
+		}
+		m_program.disable();
+
+		const auto &vsize = MAX_SLICES * 4 * sizeof(glm::vec3);
+		const auto &isize = MAX_SLICES * 6 * sizeof(GLuint);
+
+		m_buffer_data->bind();
+		m_buffer_data->generateVertexBuffer(nullptr, vsize);
+		m_buffer_data->generateIndexBuffer(nullptr, isize);
+		m_buffer_data->attribPointer(m_program["vertex"], 3);
+		m_buffer_data->unbind();
 	}
 }
+
+void VDBVolume::slice(const glm::vec3 &view_dir)
+{
+	auto axis = axis_dominant_v3_single(glm::value_ptr(view_dir));
+
+	if (m_axis == axis) {
+		return;
+	}
+
+	m_axis = axis;
+	auto depth = m_min[m_axis];
+	auto slice_size = m_dimensions[m_axis] / m_num_slices;
+
+	/* always process slices in back to front order! */
+	if (view_dir[m_axis] > 0.0f) {
+		depth = m_max[m_axis];
+		slice_size = -slice_size;
+	}
+
+	const glm::vec3 vertices[3][4] = {
+	    {
+	        glm::vec3(0.0f, m_min[1], m_min[2]),
+	        glm::vec3(0.0f, m_max[1], m_min[2]),
+	        glm::vec3(0.0f, m_max[1], m_max[2]),
+	        glm::vec3(0.0f, m_min[1], m_max[2])
+	    },
+	    {
+	        glm::vec3(m_min[0], 0.0f, m_min[2]),
+	        glm::vec3(m_min[0], 0.0f, m_max[2]),
+	        glm::vec3(m_max[0], 0.0f, m_max[2]),
+	        glm::vec3(m_max[0], 0.0f, m_min[2])
+	    },
+	    {
+	        glm::vec3(m_min[0], m_min[1], 0.0f),
+	        glm::vec3(m_min[0], m_max[1], 0.0f),
+	        glm::vec3(m_max[0], m_max[1], 0.0f),
+	        glm::vec3(m_max[0], m_min[1], 0.0f)
+	    }
+	};
+
+	GLuint *indices = new GLuint[m_elements];
+	int idx = 0, idx_count = 0;
+
+	std::vector<glm::vec3> points;
+	points.reserve(m_num_slices * 4);
+
+	for (auto slice(0); slice < m_num_slices; slice++) {
+		glm::vec3 v0 = vertices[m_axis][0];
+		glm::vec3 v1 = vertices[m_axis][1];
+		glm::vec3 v2 = vertices[m_axis][2];
+		glm::vec3 v3 = vertices[m_axis][3];
+
+		v0[m_axis] = depth;
+		v1[m_axis] = depth;
+		v2[m_axis] = depth;
+		v3[m_axis] = depth;
+
+		points.push_back(v0 * glm::mat3(m_inv_matrix));
+		points.push_back(v1 * glm::mat3(m_inv_matrix));
+		points.push_back(v2 * glm::mat3(m_inv_matrix));
+		points.push_back(v3 * glm::mat3(m_inv_matrix));
+
+		indices[idx_count++] = idx + 0;
+		indices[idx_count++] = idx + 1;
+		indices[idx_count++] = idx + 2;
+		indices[idx_count++] = idx + 0;
+		indices[idx_count++] = idx + 2;
+		indices[idx_count++] = idx + 3;
+
+		depth += slice_size;
+		idx += 4;
+	}
+
+	m_buffer_data->updateVertexBuffer(&vertices[0][0], points.size() * sizeof(glm::vec3));
+	m_buffer_data->updateIndexBuffer(indices, idx_count * sizeof(GLuint));
+
+	delete [] indices;
+}
+
+void VDBVolume::render(ViewerContext *context, const bool for_outline)
+{
+	if (!m_grid.get() || m_grid->empty()) {
+		return;
+	}
+
+	if (m_need_draw_update) {
+		prepareRenderData();
+		m_need_draw_update = false;
+	}
+
+	if (m_draw_topology) {
+		m_topology->render(context);
+	}
+
+	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
+		if (m_program.isValid()) {
+			m_program.enable();
+			m_buffer_data->bind();
+
+			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
+			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context->MVP()));
+			glUniformMatrix3fv(m_program("N"), 1, GL_FALSE, glm::value_ptr(context->normal()));
+			glUniform1i(m_program("for_outline"), for_outline);
+			glDrawElements(m_draw_type, m_elements, GL_UNSIGNED_INT, nullptr);
+
+			m_buffer_data->unbind();
+			m_program.disable();
+		}
+	}
+	else {
+		slice(context->view());
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		if (m_program.isValid()) {
+			m_program.enable();
+			m_buffer_data->bind();
+			m_volume_texture->bind();
+			m_transfer_texture->bind();
+
+			auto min = m_min * glm::mat3(m_inv_matrix);
+			glUniform3fv(m_program("offset"), 1, &min[0]);
+			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context->MVP()));
+			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
+			glUniform1i(m_program("use_lut"), m_use_lut);
+			glDrawElements(m_draw_type, m_elements, GL_UNSIGNED_INT, nullptr);
+
+			m_transfer_texture->unbind();
+			m_volume_texture->unbind();
+			m_buffer_data->unbind();
+			m_program.disable();
+		}
+
+		glDisable(GL_BLEND);
+	}
+}
+
+void VDBVolume::setCustomUIParams(ParamCallback *cb)
+{
+	if (!m_grid.get() || m_grid->empty()) {
+		return;
+	}
+
+	bool_param(cb, "Draw Topology", &m_draw_topology, m_draw_topology);
+
+	if (m_grid->getGridClass() != openvdb::GridClass::GRID_LEVEL_SET) {
+		int_param(cb, "Slices", &m_num_slices, 1, 512, m_num_slices);
+		bool_param(cb, "Use LUT", &m_use_lut, m_use_lut);
+	}
+}
+
+static Primitive *create_vdb_volume()
+{
+	return new VDBVolume();
+}
+
+extern "C" {
+
+void new_kamikaze_objects(ObjectFactory *factory)
+{
+	factory->registerType("OpenVDB Volume", create_vdb_volume);
+}
+
+}
+
+#if 0
+void Volume::loadTransferFunction()
+{
+	/* transfer function (lookup table) color values */
+	const glm::vec3 jet_values[12] = {
+	    glm::vec3(1.0f, 0.0f, 0.0f),
+		glm::vec3(1.0f, 0.0f, 0.5f),
+		glm::vec3(1.0f, 0.0f, 1.0f),
+
+		glm::vec3(0.5f, 0.0f, 1.0f),
+		glm::vec3(0.0f, 0.5f, 1.0f),
+		glm::vec3(0.0f, 1.0f, 1.0f),
+
+		glm::vec3(0.0f, 1.0f, 0.5f),
+		glm::vec3(0.0f, 1.0f, 0.0f),
+		glm::vec3(0.5f, 1.0f, 0.0f),
+
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(1.0f, 0.5f, 0.0f),
+		glm::vec3(1.0f, 0.0f, 0.0f),
+	};
+
+	int size = 256;
+	float data[size][3];
+	int indices[12];
+
+	for (int i = 0; i < 12; ++i) {
+		indices[i] = i * 21;
+	}
+
+	/* for each adjacent pair of colors, find the difference in the RGBA values
+	 * and then interpolate */
+	for (int j = 0; j < 12 - 1; ++j) {
+		auto color_diff = jet_values[j + 1] - jet_values[j];
+		auto index = indices[j + 1] - indices[j];
+		auto inc = color_diff / static_cast<float>(index);
+
+		for (int i = indices[j] + 1; i < indices[j + 1]; ++i) {
+			data[i][0] = jet_values[j].r + i * inc.r;
+			data[i][1] = jet_values[j].g + i * inc.g;
+			data[i][2] = jet_values[j].b + i * inc.b;
+		}
+	}
+
+	m_transfer_texture = ego::Texture1D::create(m_num_textures++);
+	m_transfer_texture->bind();
+	m_transfer_texture->setType(GL_FLOAT, GL_RGB, GL_RGB);
+	m_transfer_texture->setMinMagFilter(GL_LINEAR, GL_LINEAR);
+	m_transfer_texture->setWrapping(GL_REPEAT);
+	m_transfer_texture->fill(&data[0][0], &size);
+	m_transfer_texture->unbind();
+}
+
+bool LevelSet::intersectLS(const Ray &/*ray*/, Brush */*brush*/)
+{
+	using namespace openvdb;
+
+	openvdb::math::Vec3d P(ray.pos.x, ray.pos.y, ray.pos.z);
+	openvdb::math::Vec3d D(ray.dir.x, ray.dir.y, ray.dir.z);
+	D.normalize();
+
+	ray_t vray(P, D, 1e-5, std::numeric_limits<double>::max());
+
+	openvdb::math::Vec3d position;
+
+	m_isector.reset(new isector_t(*m_level_set));
+	if (m_isector->intersectsWS(vray, position)) {
+		math::Coord ijk = m_level_set->transform().worldToIndexNodeCentered(position);
+
+		if (brush->tool() == BRUSH_TOOL_DRAW) {
+			do_sculpt_draw(*m_level_set, brush, ijk, m_voxel_size);
+		}
+		else {
+			do_sculpt_smooth(*m_level_set, brush, ijk, m_voxel_size);
+		}
+
+		m_topology_changed = true;
+
+		if (m_draw_topology) {
+			m_topology.reset(new TreeTopology(m_level_set));
+		}
+
+		generateMesh(true);
+	}
+
+	return false;
+}
+#endif

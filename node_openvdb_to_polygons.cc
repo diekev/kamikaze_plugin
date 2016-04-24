@@ -29,7 +29,7 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/VolumeToMesh.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB To Polygons";
 
@@ -70,9 +70,14 @@ void NodeToPolygons::process()
 		return;
 	}
 
-	auto *ls = static_cast<LevelSet *>(prim);
+	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(ls->getGridPtr());
+	if (!is_level_set(vdb_prim)) {
+		setOutputPrimitive("Primitive", nullptr);
+		return;
+	}
+
+	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
 	openvdb::tools::VolumeToMesh mesher(m_iso_value, m_adaptivity);
 	mesher(*grid);

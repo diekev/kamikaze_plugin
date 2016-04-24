@@ -25,7 +25,7 @@
 #include <kamikaze/nodes.h>
 #include <kamikaze/paramfactory.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Write";
 
@@ -69,7 +69,7 @@ void NodeWrite::process()
 		return;
 	}
 
-	auto ls = static_cast<LevelSet *>(prim);
+	auto ls = static_cast<VDBVolume *>(prim);
 
 	openvdb::io::File file(m_filename);
 

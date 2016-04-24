@@ -29,7 +29,7 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/MeshToVolume.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB From Polygons";
 
@@ -104,7 +104,7 @@ void NodeFromPolygons::process()
 	auto grid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(
 	                adapt, *transform, m_int_band, m_ext_band, 0, nullptr);
 
-	auto output_prim = new LevelSet(grid);
+	auto output_prim = new VDBVolume(grid);
 
 	setOutputPrimitive("VDB", output_prim);
 }

@@ -28,7 +28,7 @@
 
 #include <openvdb/math/Operators.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Noise";
 
@@ -88,11 +88,17 @@ void NodeNoise::process()
 		return;
 	}
 
+	auto vdb_prim = static_cast<VDBVolume *>(prim);
+
+	if (!is_level_set(vdb_prim)) {
+		setOutputPrimitive("Primitive", nullptr);
+		return;
+	}
+
 	using CPT = openvdb::math::CPT<openvdb::math::GenericMap, openvdb::math::CD_2ND>;
     using StencilType = openvdb::math::SecondOrderDenseStencil<openvdb::FloatGrid>;
 
-	auto level_set = static_cast<LevelSet *>(prim);
-	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(level_set->getGridPtr());
+	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
 	StencilType stencil(*grid); // uses its own grid accessor
 
@@ -112,9 +118,9 @@ void NodeNoise::process()
         iter.setValue(*iter + noise);
 	}
 
-	level_set->setGrid(grid);
+	vdb_prim->setGrid(grid);
 
-	setOutputPrimitive("Primitive", level_set);
+	setOutputPrimitive("Primitive", vdb_prim);
 }
 
 static Node *new_noise_node()

@@ -28,7 +28,7 @@
 #include <openvdb/tools/LevelSetSphere.h>
 #include <openvdb/tools/LevelSetPlatonic.h>
 
-#include "levelset.h"
+#include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Platonic";
 
@@ -110,9 +110,8 @@ void NodePlatonic::process()
 			break;
 	}
 
-	LevelSet *level_set = new LevelSet(grid);
-
-	setOutputPrimitive("Primitive", level_set);
+	auto prim = new VDBVolume(grid);
+	setOutputPrimitive("Primitive", prim);
 }
 
 static Node *new_platonic_node()
