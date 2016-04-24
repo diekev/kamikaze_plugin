@@ -62,6 +62,7 @@ include_directories(
 )
 
 set(OPENVDB_LIBRARIES
+	${EGO_LIBRARIES}
 	${OPENEXR_LIBRARIES}
 	${OPENVDB_LIBRARIES}
 	${TBB_LIBRARIES}
@@ -90,6 +91,8 @@ set(KAMIKAZE_OPENVDB_LIBS
 )
 
 set(NODE_SRC
+	node_openvdb_create.cc
+	node_openvdb_fill.cc
 	node_openvdb_filter_level_set.cc
 	node_openvdb_from_polygons.cc
 	node_openvdb_noise.cc
