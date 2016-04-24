@@ -80,12 +80,16 @@ void NodeFromPolygons::process()
 	std::vector<openvdb::Vec3s> points;
     std::vector<openvdb::Vec4I> faces;
 
+	auto transform = openvdb::math::Transform::createLinearTransform(m_voxel_size);
+
     {
         points.reserve(mesh->verts().size());
         faces.reserve(mesh->quads().size() + mesh->tris().size());
 
+		openvdb::Vec3s point;
 		for (auto &vert : mesh->verts()) {
-			points.emplace_back(vert[0], vert[1], vert[2]);
+			point = transform->worldToIndex({vert[0], vert[1], vert[2]});
+			points.push_back(point);
 		}
 
 		for (auto &quad : mesh->quads()) {
@@ -96,8 +100,6 @@ void NodeFromPolygons::process()
 			faces.emplace_back(tri[0], tri[1], tri[2], openvdb::util::INVALID_IDX);
 		}
     }
-
-	auto transform = openvdb::math::Transform::createLinearTransform(m_voxel_size);
 
 	openvdb::tools::QuadAndTriangleDataAdapter<openvdb::Vec3s, openvdb::Vec4I> adapt(points, faces);
 

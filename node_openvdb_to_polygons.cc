@@ -84,7 +84,7 @@ void NodeToPolygons::process()
 
 	Mesh *mesh = new Mesh;
 
-	mesh->verts().reserve(mesher.pointListSize());
+	mesh->verts().resize(mesher.pointListSize());
 
 	for (size_t i = 0, ie = mesh->verts().size(); i < ie; ++i) {
 		const auto &point = mesher.pointList()[i];
@@ -102,8 +102,8 @@ void NodeToPolygons::process()
 		num_quads += polygons.numQuads();
 	}
 
-	mesh->quads().reserve(num_quads);
-	mesh->tris().reserve(num_triangles);
+	mesh->quads().resize(num_quads);
+	mesh->tris().resize(num_triangles);
 
 	size_t quad_idx = 0, tri_idx = 0;
     for (size_t n = 0, N = mesher.polygonPoolListSize(); n < N; ++n) {
@@ -121,6 +121,7 @@ void NodeToPolygons::process()
     }
 
 	mesh->update();
+	mesh->generateGPUData();
 
 	setOutputPrimitive("Mesh", mesh);
 }
