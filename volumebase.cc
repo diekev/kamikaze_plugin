@@ -527,8 +527,13 @@ static Primitive *create_vdb_volume()
 
 extern "C" {
 
-void new_kamikaze_objects(ObjectFactory *factory)
+void new_kamikaze_prims(PrimitiveFactory *factory)
 {
+	/* Avoid double registration. */
+	if (factory->registered("OpenVDB Volume")) {
+		return;
+	}
+
 	factory->registerType("OpenVDB Volume", create_vdb_volume);
 }
 

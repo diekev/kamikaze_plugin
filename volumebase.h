@@ -91,7 +91,7 @@ public:
 	void render(ViewerContext *context, const bool for_outline) override;
 	void setCustomUIParams(ParamCallback *cb) override;
 
-	static void registerSelf(ObjectFactory *factory);
+	static void registerSelf(PrimitiveFactory *factory);
 
 private:
 	void loadShader();
