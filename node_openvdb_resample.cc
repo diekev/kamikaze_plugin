@@ -39,8 +39,13 @@ enum {
 };
 
 class NodeResample : public Node {
-	float voxel_size = 0.1f;
-	int order = 0;
+	float m_voxel_size = 0.1f;
+	float m_voxel_scale = 1.0f;
+	int m_order = 0;
+	float m_translate[3];
+	float m_rotate[3];
+	float m_scale[3];
+	float m_pivot[3];
 
 public:
 	NodeResample();
@@ -59,16 +64,31 @@ NodeResample::NodeResample()
 
 void NodeResample::setUIParams(ParamCallback *cb)
 {
-	const char *order_type[] = {
+	const char *order_items[] = {
 	    "Nearest",
 	    "Linear",
 	    "Quadratic",
 	    nullptr
 	};
 
-	enum_param(cb, "Interpolation", &order, order_type, order);
+	enum_param(cb, "Interpolation", &m_order, order_items, m_order);
 
-	float_param(cb, "Voxel Size", &voxel_size, 0.01f, 10.0f, voxel_size);
+	const char *eval_items[] = {
+	    "Explicit",
+	    "Voxel Size",
+	    "Scale Voxel",
+	    nullptr
+	};
+
+	enum_param(cb, "Interpolation", &m_order, eval_items, m_order);
+
+	float_param(cb, "Voxel Size", &m_voxel_size, 0.001f, 10.0f, m_voxel_size);
+	float_param(cb, "Voxel Scale", &m_voxel_scale, 0.001f, 10.0f, m_voxel_size);
+
+	xyz_param(cb, "Translate", m_translate);
+	xyz_param(cb, "Rotate", m_rotate);
+	xyz_param(cb, "Scale", m_scale);
+	xyz_param(cb, "Scale", m_pivot);
 }
 
 struct LevelSetRebuildOp {
@@ -155,13 +175,13 @@ void NodeResample::process()
 	auto outgrid = grid->copyGrid(CP_NEW);
 
 	if (is_level_set(vdb_prim)) {
-		LevelSetRebuildOp op(voxel_size);
+		LevelSetRebuildOp op(m_voxel_size);
 
 		process_grid_real(grid, vdb_prim->storage(), op);
 		outgrid = op.output;
 	}
 	else {
-		ResampleGridOp op(outgrid, voxel_size, order);
+		ResampleGridOp op(outgrid, m_voxel_size, m_order);
 		process_typed_grid(grid, vdb_prim->storage(), op);
 	}
 
