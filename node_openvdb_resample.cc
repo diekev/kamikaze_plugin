@@ -32,8 +32,15 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Resample";
 
+enum {
+	NEAREST = 0,
+	LINEAR,
+	QUADRATIC,
+};
+
 class NodeResample : public Node {
 	float voxel_size = 0.1f;
+	int order = 0;
 
 public:
 	NodeResample();
@@ -52,11 +59,21 @@ NodeResample::NodeResample()
 
 void NodeResample::setUIParams(ParamCallback *cb)
 {
-	float_param(cb, "Voxel Size", &voxel_size, 0.1f, 10.0f, voxel_size);
+	const char *order_type[] = {
+	    "Nearest",
+	    "Linear",
+	    "Quadratic",
+	    nullptr
+	};
+
+	enum_param(cb, "Interpolation", &order, order_type, order);
+
+	float_param(cb, "Voxel Size", &voxel_size, 0.01f, 10.0f, voxel_size);
 }
 
 struct LevelSetRebuildOp {
 	const float voxel_size;
+	openvdb::GridBase::Ptr output;
 
 	explicit LevelSetRebuildOp(const float vsize)
 	    : voxel_size(vsize)
@@ -71,7 +88,6 @@ struct LevelSetRebuildOp {
 		typedef math::Transform Transform;
 
 		Transform::Ptr xform = Transform::createLinearTransform(voxel_size);
-		typename GridType::Ptr output;
 
 		const float halfwidth = grid->background() * (1.0f / grid->transform().voxelSize()[0]);
 		util::NullInterrupter interrupt;
@@ -79,16 +95,18 @@ struct LevelSetRebuildOp {
 		output = tools::doLevelSetRebuild(*grid, zeroVal<ValueType>(),
 		                                  halfwidth, halfwidth,
 		                                  xform.get(), &interrupt);
-
-		grid.swap(output);
 	}
 };
 
 struct ResampleGridOp {
 	const float voxel_size;
+	openvdb::GridBase::Ptr output;
+	const int order;
 
-	explicit ResampleGridOp(const float vsize)
+	explicit ResampleGridOp(openvdb::GridBase::Ptr out, const float vsize, const int ord)
 	    : voxel_size(vsize)
+	    , output(out)
+	    , order(ord)
 	{}
 
 	template <typename GridType>
@@ -100,16 +118,23 @@ struct ResampleGridOp {
 		typedef math::Transform Transform;
 
 		Transform::Ptr xform = Transform::createLinearTransform(voxel_size);
-		typename GridType::Ptr output;
 
-		output = GridType::create(grid->background());
-		output->setTransform(xform);
-		output->setName(grid->getName());
-		output->setGridClass(grid->getGridClass());
+		auto outgrid = gridPtrCast<GridType>(output);
+		outgrid->setTransform(xform);
+		outgrid->setName(grid->getName());
+		outgrid->setGridClass(grid->getGridClass());
 
-		tools::resampleToMatch<openvdb::tools::PointSampler>(*grid, *output);
-
-		grid.swap(output);
+		switch (order) {
+			case NEAREST:
+				tools::resampleToMatch<openvdb::tools::PointSampler>(*grid, *outgrid);
+				break;
+			case LINEAR:
+				tools::resampleToMatch<openvdb::tools::BoxSampler>(*grid, *outgrid);
+				break;
+			case QUADRATIC:
+				tools::resampleToMatch<openvdb::tools::QuadraticSampler>(*grid, *outgrid);
+				break;
+		}
 	}
 };
 
@@ -127,16 +152,20 @@ void NodeResample::process()
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 	auto grid = vdb_prim->getGridPtr();
 
+	auto outgrid = grid->copyGrid(CP_NEW);
+
 	if (is_level_set(vdb_prim)) {
 		LevelSetRebuildOp op(voxel_size);
+
 		process_grid_real(grid, vdb_prim->storage(), op);
+		outgrid = op.output;
 	}
 	else {
-		ResampleGridOp op(voxel_size);
+		ResampleGridOp op(outgrid, voxel_size, order);
 		process_typed_grid(grid, vdb_prim->storage(), op);
 	}
 
-	vdb_prim->setGrid(grid);
+	vdb_prim->setGrid(outgrid);
 
 	setOutputPrimitive("VDB", vdb_prim);
 }

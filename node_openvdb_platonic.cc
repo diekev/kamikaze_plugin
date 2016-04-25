@@ -72,7 +72,7 @@ void NodePlatonic::setUIParams(ParamCallback *cb)
 	enum_param(cb, "Solid Type", &type, platonic_type, type);
 
 	float_param(cb, "Radius", &radius, 0.1f, 10.0f, radius);
-	float_param(cb, "Voxel Size", &voxel_size, 0.1f, 10.0f, voxel_size);
+	float_param(cb, "Voxel Size", &voxel_size, 0.01f, 10.0f, voxel_size);
 	float_param(cb, "Half Width", &half_width, 3.0f, 10.0f, half_width);
 
 	xyz_param(cb, "Center", center);
