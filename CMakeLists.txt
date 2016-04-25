@@ -107,3 +107,13 @@ foreach(file_name ${NODE_SRC})
 	get_filename_component(file ${file_name} NAME_WE)
 	define_plugin(${file} ${file_name} "${KAMIKAZE_OPENVDB_LIBS}")
 endforeach()
+
+
+set(MESH_NODE_SRC
+	node_mesh_obj_read.cc
+)
+
+foreach(file_name ${MESH_NODE_SRC})
+	get_filename_component(file ${file_name} NAME_WE)
+	define_plugin(${file} ${file_name} "${EGO_LIBRARIES}")
+endforeach()
