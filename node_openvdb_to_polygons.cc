@@ -84,44 +84,41 @@ void NodeToPolygons::process()
 
 	Mesh *mesh = new Mesh;
 
-	mesh->verts().resize(mesher.pointListSize());
+	PointList *points = mesh->points();
+	points->reserve(mesher.pointListSize());
 
-	for (size_t i = 0, ie = mesh->verts().size(); i < ie; ++i) {
+	for (size_t i = 0, ie = mesher.pointListSize(); i < ie; ++i) {
 		const auto &point = mesher.pointList()[i];
-		mesh->verts()[i] = { point[0], point[1], point[2] };
+		points->push_back({ point[0], point[1], point[2] });
 	}
 
 	auto &polygon_pool_list = mesher.polygonPoolList();
 
 	/* Preallocate primitive lists */
-	size_t num_quads = 0, num_triangles = 0;
+	size_t num_polys = 0;
 	for (size_t n = 0, ie = mesher.polygonPoolListSize(); n < ie; ++n) {
 		auto &polygons = polygon_pool_list[n];
-
-		num_triangles += polygons.numTriangles();
-		num_quads += polygons.numQuads();
+		num_polys += polygons.numTriangles() + polygons.numQuads();
 	}
 
-	mesh->quads().resize(num_quads);
-	mesh->tris().resize(num_triangles);
+	PolygonList *polys = mesh->polys();
+	polys->reserve(num_polys);
 
-	size_t quad_idx = 0, tri_idx = 0;
     for (size_t n = 0, N = mesher.polygonPoolListSize(); n < N; ++n) {
         auto &polygons = polygon_pool_list[n];
 
         for (size_t i = 0, I = polygons.numQuads(); i < I; ++i) {
 			const auto &quad = polygons.quad(i);
-            mesh->quads()[quad_idx++] = { quad[0], quad[1], quad[2], quad[3] };
+            polys->push_back({ quad[0], quad[1], quad[2], quad[3] });
         }
 
         for (size_t i = 0, I = polygons.numTriangles(); i < I; ++i) {
 			const auto &tri = polygons.triangle(i);
-            mesh->tris()[tri_idx++] = { tri[0], tri[1], tri[2] };
+            polys->push_back({ tri[0], tri[1], tri[2], std::numeric_limits<unsigned int>::max() });
         }
     }
 
-	mesh->update();
-	mesh->generateGPUData();
+	mesh->tag_update();
 
 	setOutputPrimitive("Mesh", mesh);
 }

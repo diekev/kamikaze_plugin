@@ -66,10 +66,16 @@ void NodeMeshOBJRead::process()
 	}
 
 	Mesh *mesh = new Mesh;
-	mesh->verts().reserve(m_num_verts);
-	mesh->quads().reserve(m_num_polys);
-	mesh->tris().reserve(0);
-	mesh->normals().reserve(m_num_normals);
+
+	PointList *points = mesh->points();
+	points->reserve(m_num_verts);
+
+	PolygonList *polys = mesh->polys();
+	polys->reserve(m_num_polys);
+
+	Attribute *normals = mesh->attribute("normal", ATTR_TYPE_VEC3);
+	normals->resize(m_num_normals);
+	int normal_idx = 0;
 
 	std::ifstream fp_in;
 	fp_in.open(m_filename.c_str());
@@ -101,11 +107,11 @@ void NodeMeshOBJRead::process()
 
 		if (header == "v") {
 			is >> v.x >> v.y >> v.z;
-			mesh->verts().push_back(v);
+			points->push_back(v);
 		}
 		else if (header == "vn") {
 			is >> v.x >> v.y >> v.z;
-			mesh->normals().push_back(v);
+			normals->vec3(normal_idx++, v);
 		}
 		else if (header == "f") {
 			int i = 0;
@@ -128,11 +134,10 @@ void NodeMeshOBJRead::process()
 			}
 
 			if (i == 3) {
-				mesh->tris().emplace_back(glm::ivec3{ poly[0], poly[1], poly[2] });
+				poly[3] = std::numeric_limits<unsigned int>::max();
 			}
-			else if (i == 4) {
-				mesh->quads().emplace_back(glm::ivec4{ poly[0], poly[1], poly[2], poly[3] });
-			}
+
+			polys->push_back(glm::ivec4{ poly[0], poly[1], poly[2], poly[3] });
 		}
 		else if (header == "o") {
 			is >> faceinfo;
@@ -146,8 +151,7 @@ void NodeMeshOBJRead::process()
 
 	fp_in.close();
 
-	mesh->update();
-	mesh->generateGPUData();
+	mesh->tag_update();
 
 	setOutputPrimitive("Mesh", mesh);
 }
@@ -180,10 +184,10 @@ bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 			++m_num_verts;
 		}
 		else if (header.compare("vt") == 0) {
-			++m_num_normals;
+//			++m_num_uvs;
 		}
 		else if (header.compare("vn") == 0) {
-//			++m_num_uvs;
+			++m_num_normals;
 		}
 		else if (header.compare("f ") == 0) {
 			++m_num_polys;

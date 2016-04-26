@@ -77,27 +77,28 @@ void NodeFromPolygons::process()
 
 	Mesh *mesh = static_cast<Mesh *>(prim);
 
+	const PointList *mpoints = mesh->points();
+	const PolygonList *polys = mesh->polys();
+
 	std::vector<openvdb::Vec3s> points;
     std::vector<openvdb::Vec4I> faces;
 
 	auto transform = openvdb::math::Transform::createLinearTransform(m_voxel_size);
 
     {
-        points.reserve(mesh->verts().size());
-        faces.reserve(mesh->quads().size() + mesh->tris().size());
+        points.reserve(mpoints->size());
+        faces.reserve(polys->size());
 
 		openvdb::Vec3s point;
-		for (auto &vert : mesh->verts()) {
-			point = transform->worldToIndex({vert[0], vert[1], vert[2]});
+		for (size_t n = 0, N = mpoints->size(); n < N; ++n) {
+			const auto &vert = (*mpoints)[n];
+			point = transform->worldToIndex({ vert[0], vert[1], vert[2] });
 			points.push_back(point);
 		}
 
-		for (auto &quad : mesh->quads()) {
+		for (size_t n = 0, N = polys->size(); n < N; ++n) {
+			const auto &quad = (*polys)[n];
 			faces.emplace_back(quad[0], quad[1], quad[2], quad[3]);
-		}
-
-		for (auto &tri : mesh->tris()) {
-			faces.emplace_back(tri[0], tri[1], tri[2], openvdb::util::INVALID_IDX);
 		}
     }
 
