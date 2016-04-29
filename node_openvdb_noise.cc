@@ -107,8 +107,6 @@ void NodeNoise::process()
 	openvdb::math::GenericMap map(*grid);
 	float noise;
 
-	init_perm_table();
-
 	for (auto iter = grid->beginValueOn(); iter; ++iter) {
 		stencil.moveTo(iter);
         worldPt = xform.indexToWorld(CPT::result(map, stencil));
