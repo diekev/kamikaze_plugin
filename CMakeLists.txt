@@ -61,11 +61,15 @@ include_directories(
 	${QT5_INCLUDE_DIRS}
 )
 
+set(BLOSC_LIBRARY /opt/lib/blosc/lib/libblosc.so)
+set(BLOSC_INCLUDE_DIR /opt/lib/blosc/include)
+
 set(OPENVDB_LIBRARIES
 	${EGO_LIBRARIES}
 	${OPENEXR_LIBRARIES}
 	${OPENVDB_LIBRARIES}
 	${TBB_LIBRARIES}
+	${BLOSC_LIBRARY}
 )
 
 set(VDB_PRIM_SRC
@@ -99,6 +103,7 @@ set(NODE_SRC
 	node_openvdb_noise.cc
 	node_openvdb_platonic.cc
 	node_openvdb_prune.cc
+	node_openvdb_read.cc
 	node_openvdb_resample.cc
 	node_openvdb_scatter.cc
 	node_openvdb_to_polygons.cc
