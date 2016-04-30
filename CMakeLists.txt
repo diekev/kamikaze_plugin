@@ -94,6 +94,7 @@ set(NODE_SRC
 	node_openvdb_create.cc
 	node_openvdb_fill.cc
 	node_openvdb_filter_level_set.cc
+	node_openvdb_from_particles.cc
 	node_openvdb_from_polygons.cc
 	node_openvdb_noise.cc
 	node_openvdb_platonic.cc
