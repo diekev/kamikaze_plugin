@@ -627,3 +627,8 @@ bool LevelSet::intersectLS(const Ray &/*ray*/, Brush */*brush*/)
 	return false;
 }
 #endif
+
+bool is_vector_grid(VDBVolume *vol)
+{
+	return is_elem(vol->storage(), GRID_STORAGE_VEC3D, GRID_STORAGE_VEC3S, GRID_STORAGE_VEC3I);
+}

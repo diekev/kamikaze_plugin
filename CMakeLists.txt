@@ -100,6 +100,7 @@ set(NODE_SRC
 	node_openvdb_prune.cc
 	node_openvdb_resample.cc
 	node_openvdb_to_polygons.cc
+	node_openvdb_transform.cc
 	node_openvdb_write.cc
 )
 

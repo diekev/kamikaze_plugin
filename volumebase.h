@@ -104,3 +104,5 @@ inline bool is_level_set(VDBVolume *vol)
 {
 	return vol->getGridPtr()->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET;
 }
+
+bool is_vector_grid(VDBVolume *vol);

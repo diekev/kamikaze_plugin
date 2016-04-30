@@ -38,6 +38,18 @@ enum {
 	GRID_STORAGE_VEC3D,
 };
 
+template<typename T1, typename T2>
+auto is_elem(T1 &&a, T2 &&b) -> bool
+{
+	return a == b;
+}
+
+template<typename T1, typename T2, typename... Ts>
+auto is_elem(T1 &&a, T2 &&b, Ts &&... t) -> bool
+{
+	return a == b || is_elem(a, t...);
+}
+
 inline int get_grid_storage(const openvdb::GridBase &grid)
 {
 	if (grid.isType<openvdb::FloatGrid>()) {
@@ -154,6 +166,22 @@ inline void call_typed_grid(GridBaseType &grid, OpType &op)
 				return true; \
 			case GRID_STORAGE_DOUBLE: \
 				call_typed_grid<openvdb::DoubleGrid>(grid, op); \
+				return true; \
+		} \
+		return false; \
+	} \
+	template <typename Op> \
+	inline bool process_grid_vector(GridBase grid, int storage, Op &op) \
+	{ \
+		switch (storage) { \
+			case GRID_STORAGE_VEC3D: \
+				call_typed_grid<openvdb::Vec3DGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_VEC3S: \
+				call_typed_grid<openvdb::Vec3SGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_VEC3I: \
+				call_typed_grid<openvdb::Vec3IGrid>(grid, op); \
 				return true; \
 		} \
 		return false; \
