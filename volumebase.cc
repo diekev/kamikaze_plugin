@@ -221,6 +221,14 @@ void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
 
 void VDBVolume::prepareRenderData()
 {
+	if (!m_grid.get() || m_grid->empty()) {
+		return;
+	}
+
+	if (!m_need_data_update) {
+		return;
+	}
+
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
 		loadShader();
 
@@ -267,6 +275,8 @@ void VDBVolume::prepareRenderData()
 
 		loadShader();
 	}
+
+	m_need_data_update = false;
 }
 
 int VDBVolume::storage() const
@@ -453,11 +463,6 @@ void VDBVolume::render(ViewerContext *context, const bool for_outline)
 		return;
 	}
 
-	if (m_need_draw_update) {
-		prepareRenderData();
-		m_need_draw_update = false;
-	}
-
 	if (m_draw_topology) {
 		m_topology->render(context);
 	}
@@ -518,6 +523,21 @@ void VDBVolume::setCustomUIParams(ParamCallback *cb)
 		int_param(cb, "Slices", &m_num_slices, 1, 512, m_num_slices);
 		bool_param(cb, "Use LUT", &m_use_lut, m_use_lut);
 	}
+}
+
+void VDBVolume::computeBBox(glm::vec3 &min, glm::vec3 &max)
+{
+	if (!m_grid.get() || m_grid->empty()) {
+		min = glm::vec3(0.0f);
+		max = glm::vec3(0.0f);
+		return;
+	}
+
+	auto bbox = m_grid->evalActiveVoxelBoundingBox();
+	auto wbbox = m_grid->transform().indexToWorld(bbox);
+
+	min = glm::vec3(wbbox.min()[0], wbbox.min()[1], wbbox.min()[2]);
+	max = glm::vec3(wbbox.max()[0], wbbox.max()[1], wbbox.max()[2]);
 }
 
 static Primitive *create_vdb_volume()

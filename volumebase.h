@@ -88,14 +88,15 @@ public:
 
 	void update() override;
 
+	void prepareRenderData() override;
 	void render(ViewerContext *context, const bool for_outline) override;
 	void setCustomUIParams(ParamCallback *cb) override;
+	void computeBBox(glm::vec3 &min, glm::vec3 &max) override;
 
 	static void registerSelf(PrimitiveFactory *factory);
 
 private:
 	void loadShader();
-	void prepareRenderData();
 	void updateGridTransform();
 	void slice(const glm::vec3 &view_dir);
 };

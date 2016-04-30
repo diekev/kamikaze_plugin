@@ -202,7 +202,7 @@ void NodeOpenVDBScatter::process()
 		}
 	}
 
-	points_prim->tag_update();
+	points_prim->tagUpdate();
 
 	setOutputPrimitive("Points", points_prim);
 }

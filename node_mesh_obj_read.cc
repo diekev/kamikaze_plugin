@@ -151,7 +151,7 @@ void NodeMeshOBJRead::process()
 
 	fp_in.close();
 
-	mesh->tag_update();
+	mesh->tagUpdate();
 
 	setOutputPrimitive("Mesh", mesh);
 }

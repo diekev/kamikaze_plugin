@@ -118,7 +118,7 @@ void NodeToPolygons::process()
         }
     }
 
-	mesh->tag_update();
+	mesh->tagUpdate();
 
 	setOutputPrimitive("Mesh", mesh);
 }
