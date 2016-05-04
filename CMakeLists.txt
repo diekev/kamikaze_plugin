@@ -119,6 +119,7 @@ endforeach()
 
 set(MESH_NODE_SRC
 	node_mesh_obj_read.cc
+	node_alpha_mesh.cc
 )
 
 foreach(file_name ${MESH_NODE_SRC})
