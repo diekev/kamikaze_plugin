@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include "util_openvdb_process.h"
 #include "volumebase.h"
@@ -41,13 +40,10 @@ static auto end(const openvdb::io::File &file)
 static constexpr auto NODE_NAME = "OpenVDB Read";
 
 class NodeOpenVDBRead : public Node {
-	std::string m_filename = "";
-	QString m_gridname = "";
 
 public:
 	NodeOpenVDBRead();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -55,30 +51,30 @@ NodeOpenVDBRead::NodeOpenVDBRead()
     : Node(NODE_NAME)
 {
 	addOutput("VDB");
-}
 
-void NodeOpenVDBRead::setUIParams(ParamCallback *cb)
-{
-	file_param(cb, "File Path", &m_filename);
+	add_prop("File Path", property_type::prop_input_file);
 
-	string_param(cb, "Grid Name", &m_gridname, "density");
-	param_tooltip(cb, "Name of the grid to lookup");
+	add_prop("Grid Name", property_type::prop_string);
+	set_prop_default_value_string("density");
+	set_prop_tooltip("Name of the grid to lookup");
 }
 
 void NodeOpenVDBRead::process()
 {
-	if (m_filename.empty()) {
+	const auto filename = eval_string("File Path");
+
+	if (filename.empty()) {
 		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
 
 	openvdb::initialize();
 
-	openvdb::io::File file(m_filename);
+	openvdb::io::File file(filename);
 
 	if (!file.open()) {
 		setOutputPrimitive("VDB", nullptr);
-		std::cerr << "Unable to open file \'" << m_filename << "\'\n";
+		std::cerr << "Unable to open file \'" << filename << "\'\n";
 		return;
 	}
 
@@ -87,13 +83,15 @@ void NodeOpenVDBRead::process()
 		std::cerr << *iter << "\n";
 	}
 
-	if (m_gridname.size() == 0 || !file.hasGrid(m_gridname.toStdString())) {
+	const auto gridname = eval_string("Grid Name");
+
+	if (gridname.size() == 0 || !file.hasGrid(gridname)) {
 		setOutputPrimitive("VDB", nullptr);
-		std::cerr << "Cannot lookup \'" << m_gridname.toStdString() << "\' in file.\n";
+		std::cerr << "Cannot lookup \'" << gridname << "\' in file.\n";
 		return;
 	}
 
-	auto grid = file.readGrid(openvdb::Name(m_gridname.toStdString()));
+	auto grid = file.readGrid(gridname);
 
 	file.close();
 

@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/GridTransformer.h>
 
@@ -39,19 +38,10 @@ enum {
 };
 
 class NodeResample : public Node {
-	float m_voxel_size = 0.1f;
-	float m_voxel_scale = 1.0f;
-	int m_order = 0;
-	float m_translate[3];
-	float m_rotate[3];
-	float m_scale[3];
-	float m_pivot[3];
-
 public:
 	NodeResample();
 	~NodeResample() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -60,35 +50,44 @@ NodeResample::NodeResample()
 {
 	addInput("VDB");
 	addOutput("VDB");
-}
 
-void NodeResample::setUIParams(ParamCallback *cb)
-{
-	const char *order_items[] = {
-	    "Nearest",
-	    "Linear",
-	    "Quadratic",
-	    nullptr
-	};
+	EnumProperty order_enum;
+	order_enum.insert("Nearest",   NEAREST);
+	order_enum.insert("Linear",    LINEAR);
+	order_enum.insert("Quadratic", QUADRATIC);
 
-	enum_param(cb, "Interpolation", &m_order, order_items, m_order);
+	add_prop("Interpolation", property_type::prop_enum);
+	set_prop_enum_values(order_enum);
 
-	const char *eval_items[] = {
-	    "Explicit",
-	    "Voxel Size",
-	    "Scale Voxel",
-	    nullptr
-	};
+	EnumProperty eval_enum;
+	eval_enum.insert("Explicit", 0);
+	eval_enum.insert("Voxel Size", 1);
+	eval_enum.insert("Scale Voxel", 2);
 
-	enum_param(cb, "Interpolation", &m_order, eval_items, m_order);
+	add_prop("Evaluation", property_type::prop_enum);
+	set_prop_enum_values(eval_enum);
 
-	float_param(cb, "Voxel Size", &m_voxel_size, 0.001f, 10.0f, m_voxel_size);
-	float_param(cb, "Voxel Scale", &m_voxel_scale, 0.001f, 10.0f, m_voxel_size);
+	add_prop("Voxel Size", property_type::prop_float);
+	set_prop_min_max(0.01f, 10.0f);
+	set_prop_default_value_float(0.1f);
+	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
 
-	xyz_param(cb, "Translate", m_translate);
-	xyz_param(cb, "Rotate", m_rotate);
-	xyz_param(cb, "Scale", m_scale);
-	xyz_param(cb, "Scale", m_pivot);
+	add_prop("Voxel Scale", property_type::prop_float);
+	set_prop_min_max(0.01f, 10.0f);
+	set_prop_default_value_float(1.0f);
+
+	add_prop("Translate", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
+
+	add_prop("Rotate", property_type::prop_vec3);
+	set_prop_min_max(0.0f, 360.0f);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
+
+	add_prop("Scale", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{1.0f, 1.0f, 1.0f});
+
+	add_prop("Pivot", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 }
 
 struct LevelSetRebuildOp {
@@ -169,19 +168,27 @@ void NodeResample::process()
 		return;
 	}
 
+	const auto voxel_size = eval_float("Voxel Size");
+//	const auto m_voxel_scale = eval_float("Voxel Scale");
+	const auto order = eval_int("Interpolation");
+//	const auto translate = eval_vec3("Translate");
+//	const auto rotate = eval_vec3("Rotate");
+//	const auto scale = eval_vec3("Scale");
+//	const auto pivot = eval_vec3("Pivot");
+
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 	auto grid = vdb_prim->getGridPtr();
 
 	auto outgrid = grid->copyGrid(CP_NEW);
 
 	if (is_level_set(vdb_prim)) {
-		LevelSetRebuildOp op(m_voxel_size);
+		LevelSetRebuildOp op(voxel_size);
 
 		process_grid_real(grid, vdb_prim->storage(), op);
 		outgrid = op.output;
 	}
 	else {
-		ResampleGridOp op(outgrid, m_voxel_size, m_order);
+		ResampleGridOp op(outgrid, voxel_size, order);
 		process_typed_grid(grid, vdb_prim->storage(), op);
 	}
 

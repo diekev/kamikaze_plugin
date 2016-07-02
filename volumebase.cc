@@ -28,7 +28,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <kamikaze/context.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/GridTransformer.h>
 
@@ -210,11 +209,7 @@ void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
 	m_max = convertOpenVDBVec(max);
 	m_dimensions = (m_max - m_min);
 
-	updateMatrix();
-
-	m_bbox = std::unique_ptr<Cube>(new Cube(m_min, m_max));
-	m_buffer_data = ego::BufferObject::create();
-	m_topology = std::unique_ptr<TreeTopology>(new TreeTopology(grid));
+	//updateMatrix();
 
 	m_need_draw_update = true;
 }
@@ -287,7 +282,7 @@ int VDBVolume::storage() const
 void VDBVolume::update()
 {
 	if (m_grid.get() && m_need_update) {
-		updateMatrix();
+		//updateMatrix();
 		updateGridTransform();
 		m_bbox.reset(new Cube(m_min, m_max));
 		m_need_update = false;
@@ -511,18 +506,20 @@ void VDBVolume::render(ViewerContext *context, const bool for_outline)
 	}
 }
 
-void VDBVolume::setCustomUIParams(ParamCallback *cb)
+void VDBVolume::setCustomUIParams(ParamCallback */*cb*/)
 {
 	if (!m_grid.get() || m_grid->empty()) {
 		return;
 	}
 
+#if 0
 	bool_param(cb, "Draw Topology", &m_draw_topology, m_draw_topology);
 
 	if (m_grid->getGridClass() != openvdb::GridClass::GRID_LEVEL_SET) {
 		int_param(cb, "Slices", &m_num_slices, 1, 512, m_num_slices);
 		bool_param(cb, "Use LUT", &m_use_lut, m_use_lut);
 	}
+#endif
 }
 
 void VDBVolume::computeBBox(glm::vec3 &min, glm::vec3 &max)

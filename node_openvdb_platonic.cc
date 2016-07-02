@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetSphere.h>
 #include <openvdb/tools/LevelSetPlatonic.h>
@@ -42,17 +41,10 @@ enum {
 };
 
 class NodePlatonic : public Node {
-	float voxel_size = 0.1f;
-	float half_width = 3.0f;
-	float radius = 2.0f;
-	float center[3] = { 0.0f, 0.0f, 0.0f };
-	int type = PLATONIC_SPHERE;
-
 public:
 	NodePlatonic();
 	~NodePlatonic() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -60,53 +52,70 @@ NodePlatonic::NodePlatonic()
     : Node(NODE_NAME)
 {
 	addOutput("VDB");
-}
 
-void NodePlatonic::setUIParams(ParamCallback *cb)
-{
-	const char *platonic_type[] = {
-	    "Sphere", "Cube", "Tetrahedron", "Octahedron", "Dodecahedron",
-	    "Icosahedron", nullptr
-	};
+	EnumProperty platonic_enum;
+	platonic_enum.insert("Sphere",       PLATONIC_SPHERE);
+	platonic_enum.insert("Cube",         PLATONIC_CUBE);
+	platonic_enum.insert("Tetrahedron",  PLATONIC_TETRA);
+	platonic_enum.insert("Octahedron",   PLATONIC_OCTA);
+	platonic_enum.insert("Dodecahedron", PLATONIC_DODE);
+	platonic_enum.insert("Icosahedron",  PLATONIC_ICOSA);
 
-	enum_param(cb, "Solid Type", &type, platonic_type, type);
+	add_prop("Solid Type", property_type::prop_enum);
+	set_prop_enum_values(platonic_enum);
 
-	float_param(cb, "Radius", &radius, 0.1f, 10.0f, radius);
-	float_param(cb, "Voxel Size", &voxel_size, 0.01f, 10.0f, voxel_size);
-	float_param(cb, "Half Width", &half_width, 3.0f, 10.0f, half_width);
+	add_prop("Radius", property_type::prop_float);
+	set_prop_min_max(0.1f, 10.0f);
+	set_prop_default_value_float(2.0f);
 
-	xyz_param(cb, "Center", center);
+	add_prop("Voxel Size", property_type::prop_float);
+	set_prop_min_max(0.01f, 10.0f);
+	set_prop_default_value_float(0.1f);
+	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
+
+	add_prop("Half Width", property_type::prop_float);
+	set_prop_min_max(3.0f, 10.0f);
+	set_prop_default_value_float(3.0f);
+
+	add_prop("Center", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 }
 
 void NodePlatonic::process()
 {
+	const auto voxel_size = eval_float("Voxel Size");
+	const auto half_width = eval_float("Half Width");
+	const auto radius = eval_float("Radius");
+	const auto center = eval_vec3("Center");
+	const auto type = eval_enum("Solid Type");
+
 	openvdb::FloatGrid::Ptr grid;
 
 	switch (type) {
 		default:
 		case PLATONIC_SPHERE:
 			grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 		case PLATONIC_CUBE:
 			grid = openvdb::tools::createLevelSetCube<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 		case PLATONIC_TETRA:
 			grid = openvdb::tools::createLevelSetTetrahedron<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 		case PLATONIC_OCTA:
 			grid = openvdb::tools::createLevelSetOctahedron<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 		case PLATONIC_DODE:
 			grid = openvdb::tools::createLevelSetDodecahedron<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 		case PLATONIC_ICOSA:
 			grid = openvdb::tools::createLevelSetIcosahedron<openvdb::FloatGrid>(
-			           radius, openvdb::Vec3f(center), voxel_size, half_width);
+			           radius, openvdb::Vec3f(&center[0]), voxel_size, half_width);
 			break;
 	}
 

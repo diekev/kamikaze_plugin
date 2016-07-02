@@ -23,22 +23,17 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Write";
 
 class NodeWrite : public Node {
-	std::string m_filename;
-	int m_compression;
-	bool m_save_as_half;
 
 public:
 	NodeWrite();
 	~NodeWrite() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -46,34 +41,36 @@ NodeWrite::NodeWrite()
     : Node(NODE_NAME)
 {
 	addInput("VDB");
-}
 
-void NodeWrite::setUIParams(ParamCallback *cb)
-{
-	file_param(cb, "File Path", &m_filename);
+	EnumProperty compression_enum;
+	compression_enum.insert("ZIP", 0);
+	compression_enum.insert("Blosc", 1);
+	compression_enum.insert("None", 2);
 
-	const char *compression_items[] = {
-	    "zip", "blosc", "none", nullptr
-	};
+	add_prop("Compression", property_type::prop_enum);
+	set_prop_enum_values(compression_enum);
 
-	enum_param(cb, "Compression", &m_compression, compression_items, 0);
-
-	bool_param(cb, "Save as Half floats", &m_save_as_half, false);
+	add_prop("Save as Half floats", property_type::prop_bool);
 }
 
 void NodeWrite::process()
 {
 	auto prim = getInputPrimitive("VDB");
 
-	if (!prim || m_filename.empty()) {
+	const auto filename = eval_string("File Path");
+
+	if (!prim || filename.empty()) {
 		return;
 	}
 
+	const auto compression = eval_enum("Compression");
+	const auto save_as_half = eval_bool("Save as Half floats");
+
 	auto ls = static_cast<VDBVolume *>(prim);
 
-	openvdb::io::File file(m_filename);
+	openvdb::io::File file(filename);
 
-	switch (m_compression) {
+	switch (compression) {
 		default:
 		case 0:
 			file.setCompression(openvdb::io::COMPRESS_ZIP);
@@ -86,7 +83,7 @@ void NodeWrite::process()
 			break;
 	}
 
-	if (m_save_as_half) {
+	if (save_as_half) {
 		ls->getGridPtr()->setSaveFloatAsHalf(true);
 	}
 

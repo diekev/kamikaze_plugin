@@ -33,7 +33,6 @@
 
 #include <kamikaze/mesh.h>
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 #include <kamikaze/prim_points.h>
 
 static constexpr auto NODE_NAME = "Alpha Mesh From Points";
@@ -44,7 +43,6 @@ class NodeAlphaMesh : public Node {
 public:
 	NodeAlphaMesh();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -53,12 +51,11 @@ NodeAlphaMesh::NodeAlphaMesh()
 {
 	addInput("Points");
 	addOutput("Mesh");
-}
 
-void NodeAlphaMesh::setUIParams(ParamCallback *cb)
-{
-	float_param(cb, "Point Radius", &m_radius, 0.0f, 2.0f, m_radius);
-	param_tooltip(cb, "Set the uniform radius of the points.");
+	add_prop("Point Radius", property_type::prop_float);
+	set_prop_min_max(0.0f, 2.0f);
+	set_prop_default_value_float(1.0f);
+	set_prop_tooltip("Set the uniform radius of the points.");
 }
 
 bool build_sphere(const glm::vec3 &x0,
@@ -208,7 +205,9 @@ void NodeAlphaMesh::process()
 
 	auto mesh = new Mesh;
 
-	construct_alpha_mesh(*(points->points()), m_radius, mesh);
+	const auto radius = eval_float("Point Radius");
+
+	construct_alpha_mesh(*(points->points()), radius, mesh);
 
 	std::cerr << *mesh << '\n';
 	mesh->tagUpdate();

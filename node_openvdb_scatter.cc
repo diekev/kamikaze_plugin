@@ -24,7 +24,6 @@
 
 #include <kamikaze/prim_points.h>
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetUtil.h>
 #include <openvdb/tools/PointScatter.h>
@@ -37,16 +36,9 @@
 static constexpr auto NODE_NAME = "OpenVDB Scatter";
 
 class NodeOpenVDBScatter : public Node {
-	int m_seed = 0;
-	int m_mode = 0;
-	float m_count = 8.0f;
-	bool m_interior = false;
-	bool m_multiply = false;
-
 public:
 	NodeOpenVDBScatter();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -55,25 +47,29 @@ NodeOpenVDBScatter::NodeOpenVDBScatter()
 {
 	addInput("VDB");
 	addOutput("Points");
-}
 
-void NodeOpenVDBScatter::setUIParams(ParamCallback *cb)
-{
-	const char *mode_items[] = {
-	    "Fixed", "Density", "Points Per Voxel", nullptr
-	};
+	add_prop("Scatter Interior", property_type::prop_bool);
 
-	bool_param(cb, "Scatter Interior", &m_interior, m_interior);
-	bool_param(cb, "Multiply Local Density", &m_multiply, m_multiply);
+	add_prop("Multiply Local Density", property_type::prop_bool);
 
-	enum_param(cb, "Mode", &m_mode, mode_items, m_mode);
-	param_tooltip(cb, "Specify how to scatter points inside the volume:\n"
-	                  "Fixed: total number of points\n"
-	                  "Density: number of points per unit volume\n"
-	                  "Points Per Voxel: number of points per voxel\n");
+	EnumProperty mode_enum;
+	mode_enum.insert("Fixed", 0);
+	mode_enum.insert("Density", 1);
+	mode_enum.insert("Points Per Voxel", 2);
 
-	float_param(cb, "Point Count", &m_count, 0, 100, m_count);
-	int_param(cb, "Random Seed", &m_seed, 0, 1000, m_seed);
+	add_prop("Mode", property_type::prop_enum);
+	set_prop_enum_values(mode_enum);
+	set_prop_tooltip("Specify how to scatter points inside the volume:\n"
+	                 "Fixed: total number of points\n"
+                     "Density: number of points per unit volume\n"
+                     "Points Per Voxel: number of points per voxel\n");
+
+	add_prop("Point Count", property_type::prop_float);
+	set_prop_min_max(0.0f, 100.0f);
+	set_prop_default_value_float(8.0f);
+
+	add_prop("Random Seed", property_type::prop_int);
+	set_prop_min_max(0, 1000);
 }
 
 /* Simple wrapper class required by openvdb::tools::UniformPointScatter and
@@ -134,6 +130,12 @@ void NodeOpenVDBScatter::process()
 		return;
 	}
 
+	const auto seed = eval_int("Random Seed");
+	const auto mode = eval_enum("Mode");
+	const auto count = eval_float("Point Count");
+	const auto interior = eval_bool("Scatter Interior");
+	const auto multiply = eval_bool("Multiply Local Density");
+
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
 	PrimPoints *points_prim = new PrimPoints;
@@ -141,16 +143,16 @@ void NodeOpenVDBScatter::process()
 	PointAccessor points(points_prim->points());
 
 	using RandGen = std::mt19937;
-	RandGen rng(m_seed + 198653421);
+	RandGen rng(seed + 198653421);
 
-	switch (m_mode) {
+	switch (mode) {
 		default:
 		case 0:
 		{
 			openvdb::tools::UniformPointScatter<PointAccessor, RandGen>
-                scatter(points, m_count, rng);
+                scatter(points, count, rng);
 
-			if (m_interior && is_level_set(vdb_prim)) {
+			if (interior && is_level_set(vdb_prim)) {
 				process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
 			}
 			else {
@@ -161,11 +163,11 @@ void NodeOpenVDBScatter::process()
 		}
 		case 1:
 		{
-			if (m_multiply) {
+			if (multiply) {
 				openvdb::tools::NonUniformPointScatter<PointAccessor, RandGen>
-	                scatter(points, m_count, rng);
+	                scatter(points, count, rng);
 
-				if (m_interior && is_level_set(vdb_prim)) {
+				if (interior && is_level_set(vdb_prim)) {
 					process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
 				}
 				else {
@@ -174,9 +176,9 @@ void NodeOpenVDBScatter::process()
 			}
 			else {
 				openvdb::tools::UniformPointScatter<PointAccessor, RandGen>
-	                scatter(points, m_count, rng);
+	                scatter(points, count, rng);
 
-				if (m_interior && is_level_set(vdb_prim)) {
+				if (interior && is_level_set(vdb_prim)) {
 					process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
 				}
 				else {
@@ -189,9 +191,9 @@ void NodeOpenVDBScatter::process()
 		case 2:
 		{
 			openvdb::tools::DenseUniformPointScatter<PointAccessor, RandGen>
-                scatter(points, m_count, rng);
+                scatter(points, count, rng);
 
-			if (m_interior && is_level_set(vdb_prim)) {
+			if (interior && is_level_set(vdb_prim)) {
 				process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
 			}
 			else {

@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include "util_openvdb_process.h"
 #include "volumebase.h"
@@ -31,17 +30,9 @@
 static constexpr auto NODE_NAME = "OpenVDB Create";
 
 class NodeCreate : public Node {
-	QString gridname = "";
-	float background = 0.0f;
-	float voxel_size = 0.1f;
-	int storage = 0;
-	int vectype = 0;
-	int gridclass = 0;
-
 public:
 	NodeCreate();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -49,55 +40,74 @@ NodeCreate::NodeCreate()
     : Node(NODE_NAME)
 {
 	addOutput("VDB");
-}
 
-void NodeCreate::setUIParams(ParamCallback *cb)
-{
-	string_param(cb, "Grid Name", &gridname, "VDB Grid");
+	add_prop("Grid Name", property_type::prop_string);
+	set_prop_default_value_string("VDB Grid");
 
-	const char *storage_items[] = {
-	    "Float", "Double", "Bool", "Int32", "Int64", "Vec3I", "Vec3s", "Vec3d",
-	    nullptr
-	};
+	EnumProperty storage_enum;
+	storage_enum.insert("Float", 0);
+	storage_enum.insert("Double", 1);
+	storage_enum.insert("Int32", 2);
+	storage_enum.insert("Int64", 3);
+	storage_enum.insert("Vec3I", 4);
+	storage_enum.insert("Vec3s", 5);
+	storage_enum.insert("Vec3d", 6);
 
-	enum_param(cb, "Storage", &storage, storage_items, storage);
+	add_prop("Storage", property_type::prop_enum);
+	set_prop_enum_values(storage_enum);
 
-	const char *vectype_items[] = {
-	    "Invariant", "Covariant", "Covariant Normalize", "Contravariant Relative",
-	    "Contravariant Absolute", nullptr
-	};
+	EnumProperty vectype_enum;
+	vectype_enum.insert("Invariant", 0);
+	vectype_enum.insert("Covariant", 1);
+	vectype_enum.insert("Covariant Normalize", 2);
+	vectype_enum.insert("Contravariant Relative", 3);
+	vectype_enum.insert("Contravariant Absolute", 4);
 
-	enum_param(cb, "Vector Type", &vectype, vectype_items, vectype);
-	param_tooltip(cb,
-	              "The type of a vector determines how transforms are applied to it\n"
-	              "Invariant:\n"
-	              "    Does not transform (e.g., tuple, uvw, color)\n"
-	              "Covariant:\n"
-	              "    Apply inverse-transpose transformation: ignores translation, (e.g., gradient/normal)\n"
-	              "Covariant Normalize:\n"
-	              "    Apply inverse-transpose transformation: ignores translation, vectors are renormalized (e.g., unit normal)\n"
-	              "Contravariant Relative:\n"
-	              "    Apply \"regular\" transformation: ignores translation (e.g., displacement, velocity, acceleration)\n"
-	              "Contravariant Absolute:\n"
-	              "    Apply \"regular\" transformation: vector translates (e.g., position)"
-	              );
+	add_prop("Vector Type", property_type::prop_enum);
+	set_prop_enum_values(vectype_enum);
+	set_prop_tooltip("The type of a vector determines how transforms are applied to it\n"
+	                 "Invariant:\n"
+	                 "    Does not transform (e.g., tuple, uvw, color)\n"
+	                 "Covariant:\n"
+	                 "    Apply inverse-transpose transformation: ignores translation, (e.g., gradient/normal)\n"
+	                 "Covariant Normalize:\n"
+	                 "    Apply inverse-transpose transformation: ignores translation, vectors are renormalized (e.g., unit normal)\n"
+	                 "Contravariant Relative:\n"
+	                 "    Apply \"regular\" transformation: ignores translation (e.g., displacement, velocity, acceleration)\n"
+	                 "Contravariant Absolute:\n"
+	                 "    Apply \"regular\" transformation: vector translates (e.g., position)");
 
-	const char *gridclass_items[] = {
-	    "None", "Level Set", "Fog Volume", "Staggered", nullptr
-	};
 
-	enum_param(cb, "Grid Class", &gridclass, gridclass_items, gridclass);
+	EnumProperty gridclass_enum;
+	gridclass_enum.insert("None", 0);
+	gridclass_enum.insert("Level Set", 1);
+	gridclass_enum.insert("Fog Volume", 2);
+	gridclass_enum.insert("Staggered", 3);
 
-	float_param(cb, "Background Value", &background, 0.0f, 10.0f, background);
-	param_tooltip(cb, "Unique value returned when accessing a location in space"
-	                  " that does not resolve to a voxel or a tile.");
+	add_prop("Grid Class", property_type::prop_enum);
+	set_prop_enum_values(gridclass_enum);
 
-	float_param(cb, "Voxel Size", &voxel_size, 0.01f, 10.0f, voxel_size);
-	param_tooltip(cb, "Uniform voxel size in world units.");
+	add_prop("Background Value", property_type::prop_float);
+	set_prop_min_max(0.0f, 10.0f);
+	set_prop_default_value_float(0.0f);
+	set_prop_tooltip("Unique value returned when accessing a location in space"
+	                 " that does not resolve to a voxel or a tile.");
+
+	add_prop("Voxel Size", property_type::prop_float);
+	set_prop_min_max(0.01f, 10.0f);
+	set_prop_default_value_float(0.1f);
+	set_prop_tooltip("Uniform voxel size in world units.");
 }
 
 void NodeCreate::process()
 {
+	const auto background = eval_float("Background Value");
+	const auto voxel_size = eval_float("Voxel Size");
+	const auto gridclass = eval_enum("Grid Class");
+	const auto storage = eval_enum("Storage");
+	const auto vectype = eval_enum("Vector Type");
+	const auto gridname = eval_string("Grid Name");
+
 	int storage_type = storage;
 
 	/* Force a specific type for some grid classes to avoid issues */
@@ -119,7 +129,7 @@ void NodeCreate::process()
 
 	openvdb::GridBase::Ptr grid;
 
-	switch (storage) {
+	switch (storage_type) {
 		case GRID_STORAGE_FLOAT:
 			grid = openvdb::FloatGrid::create(background);
 			break;
@@ -148,7 +158,7 @@ void NodeCreate::process()
 
 	auto transform = openvdb::math::Transform::createLinearTransform(voxel_size);
 
-	grid->setName(gridname.toStdString());
+	grid->setName(gridname);
 	grid->setTransform(transform);
 	grid->setVectorType(static_cast<openvdb::VecType>(vectype));
 	grid->setGridClass(static_cast<openvdb::GridClass>(gridclass));

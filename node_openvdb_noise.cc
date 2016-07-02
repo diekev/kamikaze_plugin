@@ -24,7 +24,6 @@
 
 #include <kamikaze/nodes.h>
 #include <kamikaze/noise.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/math/Operators.h>
 
@@ -33,17 +32,10 @@
 static constexpr auto NODE_NAME = "OpenVDB Noise";
 
 class NodeNoise : public Node {
-	int m_octaves = 1;
-    float m_frequency = 1.0f;
-    float m_amplitude = 1.0f;
-    float m_persistence = 1.0f;
-    float m_lacunarity = 2.0f;
-
 public:
 	NodeNoise();
 
 	float evalNoise(float x, float y, float z);
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -52,31 +44,46 @@ NodeNoise::NodeNoise()
 {
 	addInput("VDB");
 	addOutput("VDB");
+
+	add_prop("Octaves", property_type::prop_int);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(1);
+
+	add_prop("Frequency", property_type::prop_float);
+	set_prop_min_max(0.0f, 1.0f);
+	set_prop_default_value_float(1.0f);
+
+	add_prop("Amplitude", property_type::prop_float);
+	set_prop_min_max(0.0f, 10.0f);
+	set_prop_default_value_float(1.0f);
+
+	add_prop("Persistence", property_type::prop_float);
+	set_prop_min_max(0.0f, 10.0f);
+	set_prop_default_value_float(1.0f);
+
+	add_prop("Lacunarity", property_type::prop_float);
+	set_prop_min_max(0.0f, 10.0f);
+	set_prop_default_value_float(2.0f);
 }
 
 float NodeNoise::evalNoise(float x, float y, float z)
 {
-	float output = 0.0f;
-	float frequency = m_frequency;
-	float amplitude = m_amplitude;
+	const auto octaves = eval_int("Octaves");
+	const auto lacunarity = eval_int("Lacunarity");
+	const auto persistence = eval_int("Persistence");
 
-	for (size_t i = 0; i < m_octaves; i++) {
+	float output = 0.0f;
+	float frequency = eval_float("Frequency");
+	float amplitude = eval_float("Amplitude");
+
+	for (size_t i = 0; i < octaves; i++) {
 		output += (amplitude * simplex_noise_3d(x * frequency, y * frequency, z * frequency));
 
-		frequency *= m_lacunarity;
-		amplitude *= m_persistence;
+		frequency *= lacunarity;
+		amplitude *= persistence;
 	}
 
 	return output;
-}
-
-void NodeNoise::setUIParams(ParamCallback *cb)
-{
-	int_param(cb, "Octaves", &m_octaves, 1, 10, m_octaves);
-	float_param(cb, "Frequency", &m_frequency, 0.0f, 1.0f, m_frequency);
-	float_param(cb, "Amplitude", &m_amplitude, 0.0f, 10.0f, m_amplitude);
-	float_param(cb, "Persistence", &m_persistence, 0.0f, 10.0f, m_persistence);
-	float_param(cb, "Lacunarity", &m_lacunarity, 0.0f, 10.0f, m_lacunarity);
 }
 
 void NodeNoise::process()

@@ -24,7 +24,6 @@
 
 #include <kamikaze/mesh.h>
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <fstream>
 #include <sstream>
@@ -32,7 +31,6 @@
 static constexpr auto NODE_NAME = "OBJ Reader";
 
 class NodeMeshOBJRead : public Node {
-	std::string m_filename;
 	size_t m_num_verts = 0;
 	size_t m_num_normals = 0;
 	size_t m_num_uvs = 0;
@@ -43,7 +41,6 @@ public:
 
 	bool prereadObj(const std::string &filename);
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -51,16 +48,15 @@ NodeMeshOBJRead::NodeMeshOBJRead()
     : Node(NODE_NAME)
 {
 	addOutput("Mesh");
-}
 
-void NodeMeshOBJRead::setUIParams(ParamCallback *cb)
-{
-	file_param(cb, "Filename", &m_filename);
+	add_prop("Filemame", property_type::prop_input_file);
 }
 
 void NodeMeshOBJRead::process()
 {
-	if (m_filename.empty() || !prereadObj(m_filename)) {
+	const auto filename = eval_string("Filename");
+
+	if (filename.empty() || !prereadObj(filename)) {
 		setOutputPrimitive("Mesh", nullptr);
 		return;
 	}
@@ -78,7 +74,7 @@ void NodeMeshOBJRead::process()
 	int normal_idx = 0;
 
 	std::ifstream fp_in;
-	fp_in.open(m_filename.c_str());
+	fp_in.open(filename.c_str());
 
 	glm::vec3 v;
 

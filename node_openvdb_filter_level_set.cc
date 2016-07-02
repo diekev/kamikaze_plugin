@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/LevelSetFilter.h>
 
@@ -32,17 +31,10 @@
 static constexpr auto NODE_NAME = "OpenVDB Filter Level Set";
 
 class NodeFilterLevelSet : public Node {
-	int m_type = 0;
-	int m_accuracy = 0;
-	int m_iterations = 1;
-	int m_width = 1;
-	float m_offset = 1.0f;
-
 public:
 	NodeFilterLevelSet();
 	~NodeFilterLevelSet() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -69,27 +61,39 @@ NodeFilterLevelSet::NodeFilterLevelSet()
 	addInput("VDB");
 	addInput("VDB Mask");
 	addOutput("VDB");
-}
 
-void NodeFilterLevelSet::setUIParams(ParamCallback *cb)
-{
-	const char *type_items[] = {
-	    "Median", "Mean", "Gaussian", "Mean Curvature", "Laplacian", "Offset",
-	    nullptr
-	};
+	EnumProperty type_enum;
+	type_enum.insert("Median",         LS_FILTER_MEDIAN);
+	type_enum.insert("Mean",           LS_FILTER_MEAN);
+	type_enum.insert("Gaussian",       LS_FILTER_GAUSSIAN);
+	type_enum.insert("Mean Curvature", LS_FILTER_MEAN_CURV);
+	type_enum.insert("Laplacian",      LS_FILTER_LAPLACIAN);
+	type_enum.insert("Offset",         LS_FILTER_OFFSET);
 
-	enum_param(cb, "Filter Type", &m_type, type_items, LS_FILTER_ACC_FISRT);
+	add_prop("Filter Type", property_type::prop_enum);
+	set_prop_enum_values(type_enum);
 
-	const char *accuracy_items[] = {
-	    "First Bias", "Second Bias", "Third Bias", "WENO5 Bias", "HJ WENO5 Bias",
-	    nullptr
-	};
+	EnumProperty accuracy_enum;
+	accuracy_enum.insert("First Bias",    LS_FILTER_ACC_FISRT);
+	accuracy_enum.insert("Second Bias",   LS_FILTER_ACC_SECOND);
+	accuracy_enum.insert("Third Bias",    LS_FILTER_ACC_THIRD);
+	accuracy_enum.insert("WENO5 Bias",    LS_FILTER_ACC_WENO5);
+	accuracy_enum.insert("HJ WENO5 Bias", LS_FILTER_ACC_HJWENO5);
 
-	enum_param(cb, "Accuracy", &m_accuracy, accuracy_items, LS_FILTER_ACC_FISRT);
+	add_prop("Accuracy", property_type::prop_enum);
+	set_prop_enum_values(accuracy_enum);
 
-	int_param(cb, "Iteration", &m_iterations, 1, 10, m_iterations);
-	int_param(cb, "Width", &m_width, 1, 10, m_width);
-	float_param(cb, "Offset", &m_offset, 1.0f, 10.0f, m_offset);
+	add_prop("Iterations", property_type::prop_int);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(1);
+
+	add_prop("Width", property_type::prop_int);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(1);
+
+	add_prop("Offset", property_type::prop_float);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(1);
 }
 
 void NodeFilterLevelSet::process()
@@ -110,6 +114,12 @@ void NodeFilterLevelSet::process()
 		return;
 	}
 
+	const auto type = eval_enum("Filter Type");
+	const auto accuracy = eval_enum("Accuracy");
+	const auto iterations = eval_int("Iterations");
+	const auto width = eval_int("Width");
+	const auto offset = eval_float("Offset");
+
 	auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 
 	FloatGrid *mask = nullptr;
@@ -126,7 +136,7 @@ void NodeFilterLevelSet::process()
 
 	filter.setTemporalScheme(math::TVD_RK1);
 
-	switch (m_accuracy) {
+	switch (accuracy) {
 		case LS_FILTER_ACC_FISRT:   filter.setSpatialScheme(math::FIRST_BIAS);   break;
 		case LS_FILTER_ACC_SECOND:  filter.setSpatialScheme(math::SECOND_BIAS);  break;
 		case LS_FILTER_ACC_THIRD:   filter.setSpatialScheme(math::THIRD_BIAS);   break;
@@ -134,35 +144,35 @@ void NodeFilterLevelSet::process()
 		case LS_FILTER_ACC_HJWENO5: filter.setSpatialScheme(math::HJWENO5_BIAS); break;
 	}
 
-	switch (m_type) {
+	switch (type) {
 		case LS_FILTER_MEDIAN:
-			for (int i = 0; i < m_iterations; ++i) {
-				filter.median(m_width, mask);
+			for (int i = 0; i < iterations; ++i) {
+				filter.median(width, mask);
 			}
 			break;
 		case LS_FILTER_MEAN:
-			for (int i = 0; i < m_iterations; ++i) {
-				filter.mean(m_width, mask);
+			for (int i = 0; i < iterations; ++i) {
+				filter.mean(width, mask);
 			}
 			break;
 		case LS_FILTER_GAUSSIAN:
-			for (int i = 0; i < m_iterations; ++i) {
-				filter.gaussian(m_width, mask);
+			for (int i = 0; i < iterations; ++i) {
+				filter.gaussian(width, mask);
 			}
 			break;
 		case LS_FILTER_MEAN_CURV:
-			for (int i = 0; i < m_iterations; ++i) {
+			for (int i = 0; i < iterations; ++i) {
 				filter.meanCurvature(mask);
 			}
 			break;
 		case LS_FILTER_LAPLACIAN:
-			for (int i = 0; i < m_iterations; ++i) {
+			for (int i = 0; i < iterations; ++i) {
 				filter.laplacian(mask);
 			}
 			break;
 		case LS_FILTER_OFFSET:
-			for (int i = 0; i < m_iterations; ++i) {
-				filter.offset(m_offset, mask);
+			for (int i = 0; i < iterations; ++i) {
+				filter.offset(offset, mask);
 			}
 			break;
 	}

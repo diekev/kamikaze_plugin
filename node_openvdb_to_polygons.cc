@@ -24,7 +24,6 @@
 
 #include <kamikaze/mesh.h>
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/VolumeToMesh.h>
@@ -34,14 +33,11 @@
 static constexpr auto NODE_NAME = "OpenVDB To Polygons";
 
 class NodeToPolygons : public Node {
-	float m_iso_value = 0.0f;
-	float m_adaptivity = 0.0f;
 
 public:
 	NodeToPolygons();
 	~NodeToPolygons() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -50,15 +46,14 @@ NodeToPolygons::NodeToPolygons()
 {
 	addInput("VDB");
 	addOutput("Mesh");
-}
 
-void NodeToPolygons::setUIParams(ParamCallback *cb)
-{
-	float_param(cb, "Iso Value", &m_iso_value, -1.0f, 1.0f, 0.0f);
-	param_tooltip(cb, "Crossing point value considered as the surface.");
+	add_prop("Iso Value", property_type::prop_float);
+	set_prop_min_max(-1.0f, 1.0f);
+	set_prop_tooltip("Crossing point value considered as the surface.");
 
-	float_param(cb, "Adaptivity", &m_adaptivity, 0.0f, 1.0f, 0.0f);
-	param_tooltip(cb, "Determine how closely the isosurface is matched by the resulting mesh..");
+	add_prop("Adaptivity", property_type::prop_float);
+	set_prop_min_max(0.0f, 1.0f);
+	set_prop_tooltip("Determine how closely the isosurface is matched by the resulting mesh.");
 }
 
 void NodeToPolygons::process()
@@ -77,9 +72,12 @@ void NodeToPolygons::process()
 		return;
 	}
 
+	const auto iso_value = eval_float("Iso Value");
+	const auto adaptivity = eval_float("Adaptivity");
+
 	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
-	openvdb::tools::VolumeToMesh mesher(m_iso_value, m_adaptivity);
+	openvdb::tools::VolumeToMesh mesher(iso_value, adaptivity);
 	mesher(*grid);
 
 	Mesh *mesh = new Mesh;

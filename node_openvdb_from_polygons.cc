@@ -24,7 +24,6 @@
 
 #include <kamikaze/mesh.h>
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/MeshToVolume.h>
@@ -34,15 +33,10 @@
 static constexpr auto NODE_NAME = "OpenVDB From Polygons";
 
 class NodeFromPolygons : public Node {
-	float m_voxel_size = 0.1f;
-	int m_int_band = 3;
-	int m_ext_band = 3;
-
 public:
 	NodeFromPolygons();
 	~NodeFromPolygons() = default;
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -52,22 +46,29 @@ NodeFromPolygons::NodeFromPolygons()
 {
 	addInput("Mesh");
 	addOutput("VDB");
-}
 
-void NodeFromPolygons::setUIParams(ParamCallback *cb)
-{
-	float_param(cb, "Voxel Size", &m_voxel_size, 0.01f, 10.0f, 0.1f);
-	param_tooltip(cb, "Voxel size of the generated level set.");
+	add_prop("Voxel Size", property_type::prop_float);
+	set_prop_min_max(0.01f, 10.0f);
+	set_prop_default_value_float(0.1f);
+	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
 
-	int_param(cb, "Interior Band", &m_int_band, 1, 10, 3);
-	param_tooltip(cb, "Interior width of the generated level set.");
+	add_prop("Interior Band", property_type::prop_int);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(3);
+	set_prop_tooltip("Interior width of the generated level set.");
 
-	int_param(cb, "Exterior Band", &m_ext_band, 1, 10, 3);
-	param_tooltip(cb, "Exterior width of the generated level set.");
+	add_prop("Exterior Band", property_type::prop_int);
+	set_prop_min_max(1, 10);
+	set_prop_default_value_int(3);
+	set_prop_tooltip("Exterior width of the generated level set.");
 }
 
 void NodeFromPolygons::process()
 {
+	const auto voxel_size = eval_float("Voxel Size");
+	const auto int_band = eval_int("Interior Band");
+	const auto ext_band = eval_int("Exterior Band");
+
 	auto prim = getInputPrimitive("Mesh");
 
 	if (!prim) {
@@ -83,7 +84,7 @@ void NodeFromPolygons::process()
 	std::vector<openvdb::Vec3s> points;
     std::vector<openvdb::Vec4I> faces;
 
-	auto transform = openvdb::math::Transform::createLinearTransform(m_voxel_size);
+	auto transform = openvdb::math::Transform::createLinearTransform(voxel_size);
 
     {
         points.reserve(mpoints->size());
@@ -105,7 +106,7 @@ void NodeFromPolygons::process()
 	openvdb::tools::QuadAndTriangleDataAdapter<openvdb::Vec3s, openvdb::Vec4I> adapt(points, faces);
 
 	auto grid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(
-	                adapt, *transform, m_int_band, m_ext_band, 0, nullptr);
+	                adapt, *transform, int_band, ext_band, 0, nullptr);
 
 	auto output_prim = new VDBVolume(grid);
 

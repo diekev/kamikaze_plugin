@@ -24,7 +24,6 @@
 
 #include <kamikaze/nodes.h>
 #include <kamikaze/noise.h>
-#include <kamikaze/paramfactory.h>
 
 #include <openvdb/tools/VectorTransformer.h>
 
@@ -34,18 +33,9 @@
 static constexpr auto NODE_NAME = "OpenVDB Transform";
 
 class NodeOpenVDBTransform : public Node {
-	float m_translate[3] = { 0.0f, 0.0f, 0.0f };
-    float m_rotate[3] = { 0.0f, 0.0f, 0.0f };
-    float m_scale[3] = { 1.0f, 1.0f, 1.0f };
-    float m_pivot[3] = { 0.0f, 0.0f, 0.0f };
-	float m_uniform_scale = 1.0f;
-	bool m_invert = false;
-	bool m_xform_vector = false;
-
 public:
 	NodeOpenVDBTransform();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -54,23 +44,29 @@ NodeOpenVDBTransform::NodeOpenVDBTransform()
 {
 	addInput("VDB");
 	addOutput("VDB");
-}
 
-void NodeOpenVDBTransform::setUIParams(ParamCallback *cb)
-{
-	xyz_param(cb, "Translate", m_translate);
-	xyz_param(cb, "Rotate", m_rotate, 0.0f, 360.0f);
+	add_prop("Translate", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	xyz_param(cb, "Scale", m_scale);
-	float_param(cb, "Uniform Scale", &m_uniform_scale, 0.0f, 1000.0f, m_uniform_scale);
+	add_prop("Rotate", property_type::prop_vec3);
+	set_prop_min_max(0.0f, 360.0f);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	xyz_param(cb, "Pivot", m_pivot);
+	add_prop("Scale", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{1.0f, 1.0f, 1.0f});
 
-	bool_param(cb, "Invert Transformation", &m_invert, m_invert);
+	add_prop("Pivot", property_type::prop_vec3);
+	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	bool_param(cb, "Transform Vectors", &m_xform_vector, m_xform_vector);
-	param_tooltip(cb, "Apply the transformation to the voxels of vector-valued"
-	                  " grids, according to their vector type.");
+	add_prop("Uniform Scale", property_type::prop_float);
+	set_prop_min_max(0.0f, 1000.0f);
+	set_prop_default_value_float(1.0f);
+
+	add_prop("Invert Transformation", property_type::prop_bool);
+
+	add_prop("Transform Vectors", property_type::prop_bool);
+	set_prop_tooltip("Apply the transformation to the voxels of vector-valued"
+	                 " grids, according to their vector type.");
 }
 
 /* Functor to apply a transform to the voxel values of vector-valued grids */
@@ -100,20 +96,26 @@ void NodeOpenVDBTransform::process()
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 	auto grid = vdb_prim->getGridPtr();
 
-	auto scale = openvdb::math::Vec3s(m_scale) * m_uniform_scale;
+	const auto translate = eval_vec3("Translate");
+    const auto rotate = eval_vec3("Rotate");
+    const auto pivot = eval_vec3("Pivot");
+	const auto invert = eval_bool("Invert Transformation");
+	const auto xform_vector = eval_bool("Transform Vectors");
+	const auto uniform_scale = eval_float("Uniform Scale");
+	const auto scale = eval_vec3("Scale") * uniform_scale;
 
 	constexpr auto deg2rad = M_PI / 180.0f;
 
 	openvdb::Mat4R mat(openvdb::Mat4R::identity());
-    mat.preTranslate(openvdb::math::Vec3s(m_pivot));
-    mat.preRotate(openvdb::math::X_AXIS, deg2rad * m_rotate[0]);
-    mat.preRotate(openvdb::math::Y_AXIS, deg2rad * m_rotate[1]);
-    mat.preRotate(openvdb::math::Z_AXIS, deg2rad * m_rotate[2]);
-    mat.preScale(scale);
-    mat.preTranslate(-openvdb::math::Vec3s(m_pivot));
-    mat.preTranslate(openvdb::math::Vec3s(m_translate));
+    mat.preTranslate(openvdb::math::Vec3s(&pivot[0]));
+    mat.preRotate(openvdb::math::X_AXIS, deg2rad * rotate[0]);
+    mat.preRotate(openvdb::math::Y_AXIS, deg2rad * rotate[1]);
+    mat.preRotate(openvdb::math::Z_AXIS, deg2rad * rotate[2]);
+    mat.preScale(openvdb::math::Vec3s(&scale[0]));
+    mat.preTranslate(-openvdb::math::Vec3s(&pivot[0]));
+    mat.preTranslate(openvdb::math::Vec3s(&translate[0]));
 
-	if (m_invert) {
+	if (invert) {
 		mat.inverse();
 	}
 
@@ -128,7 +130,7 @@ void NodeOpenVDBTransform::process()
 
 	grid->setTransform(openvdb::math::Transform::Ptr(new openvdb::math::Transform(openvdb::math::simplify(compound))));
 
-	if (m_xform_vector &&
+	if (xform_vector &&
 	    is_vector_grid(vdb_prim) &&
 	    grid->isInWorldSpace() &&
 	    grid->getVectorType() != openvdb::VEC_INVARIANT)

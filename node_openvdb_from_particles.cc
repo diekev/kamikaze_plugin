@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 #include <kamikaze/prim_points.h>
 
 #include <openvdb/tools/ParticlesToLevelSet.h>
@@ -139,23 +138,11 @@ class NodeOpenVDBFromParticles : public Node {
 	bool m_mask_vdb = false;
 	QString m_mask_name = "";
 
-	float m_bounding_limit = 0.25f;
-	float m_voxel_size = 1.0f;
-	float m_half_width = 3.0f;
-
-	float m_part_scale = 1.0f;
-	float m_min_radius = 1.5f;
-	float m_vel_scale = 1.0f;
-	float m_trail_res = 1.0f;
-
-	bool m_velocity_trails = false;
-
 public:
 	NodeOpenVDBFromParticles();
 
 	void convert(openvdb::FloatGrid::Ptr grid, ParticleList &list);
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -164,17 +151,71 @@ NodeOpenVDBFromParticles::NodeOpenVDBFromParticles()
 {
 	addInput("Points");
 	addOutput("VDB");
+
+	add_prop("Bounding Limit", property_type::prop_float);
+	set_prop_min_max(0.0f, 1.0f);
+	set_prop_default_value_float(0.25f);
+	set_prop_tooltip("Percentage to increase and decrease the particle radius."
+	                 " Used to define the maximum and minimum limit surfaces"
+                     " for the alpha mask construction.");
+
+	add_prop("Voxel Size", property_type::prop_float);
+	set_prop_min_max(1e-5f, 5.0f);
+	set_prop_default_value_float(1.0f);
+	set_prop_tooltip("Percentage to increase and decrease the particle radius."
+	                 " Used to define the maximum and minimum limit surfaces"
+                     " for the alpha mask construction.");
+
+	/* TODO: toggle for world space units */
+	add_prop("Half Width", property_type::prop_float);
+	set_prop_min_max(1.0f, 10.0f);
+	set_prop_default_value_float(3.0f);
+	set_prop_tooltip("Half the width of the narrow band in voxel units. "
+	                 "The default value 3 is recommended for level set volumes.");
+
+	add_prop("Particle Scale", property_type::prop_float);
+	set_prop_min_max(0.0f, 2.0f);
+	set_prop_default_value_float(1.0f);
+	set_prop_tooltip("The point scale attribute, which defines the world space "
+	                 "particle radius, will be scaled by this.  A value of one is assumed "
+	                 "if the scale attribute is missing.");
+
+	add_prop("Minimum Radius", property_type::prop_float);
+	set_prop_min_max(0.0f, 2.0f);
+	set_prop_default_value_float(1.5f);
+	set_prop_tooltip("Minimum radius in voxel units after scaling.  "
+	                 "Particles smaller than this limit are ignored.");
+
+	add_prop("Velocity Trails", property_type::prop_bool);
+	set_prop_tooltip("Velocity trail splatting toggle.  Note this feature "
+	                 "requires a velocity point attribute.");
+
+	add_prop("Velocity Scale", property_type::prop_float);
+	set_prop_min_max(0.0f, 1.0f);
+	set_prop_default_value_float(1.0f);
+	set_prop_tooltip("Scales the velocity point attribute 'v'.  Use "
+	                 "this parameter to control the length of the velocity trails.");
+
+	add_prop("Trail Resolution", property_type::prop_float);
+	set_prop_min_max(0.2f, 2.0f);
+	set_prop_default_value_float(1.0f);
+	set_prop_tooltip("Defines the distance between particle instances.  Use this "
+	                 "parameter to control aliasing and number of particle instances.");
 }
 
 void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleList &list)
 {
 	openvdb::tools::ParticlesToLevelSet<openvdb::FloatGrid> raster(*grid, nullptr);
 
-    raster.setRmin(m_min_radius);
+	const auto min_radius = eval_float("Minimum Radius");
+	const auto trail_res = eval_float("Trail Resolution");
+	const auto velocity_trails = eval_bool("Velocity Trails");
+
+    raster.setRmin(min_radius);
     raster.setRmax(1e15f);
 
-    if (m_velocity_trails && list.hasVelocity()) {
-        raster.rasterizeTrails(list, m_trail_res);
+    if (velocity_trails && list.hasVelocity()) {
+        raster.rasterizeTrails(list, trail_res);
     }
 	else if (list.hasRadius()){
         raster.rasterizeSpheres(list);
@@ -192,45 +233,6 @@ void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleLis
     }
 }
 
-void NodeOpenVDBFromParticles::setUIParams(ParamCallback *cb)
-{
-	float_param(cb, "Bounding Limit", &m_bounding_limit, 0.0f, 1.0f, m_bounding_limit);
-	param_tooltip(cb, "Percentage to increase and decrease the particle radius."
-	                  " Used to define the maximum and minimum limit surfaces"
-	                  " for the alpha mask construction.");
-
-	float_param(cb, "Voxel Size", &m_voxel_size, 1e-5f, 5.0f, m_voxel_size);
-	param_tooltip(cb, "Percentage to increase and decrease the particle radius."
-	                  " Used to define the maximum and minimum limit surfaces"
-	                  " for the alpha mask construction.");
-
-	/* TODO: toggle for world space units */
-	float_param(cb, "Half Width", &m_half_width, 1.0f, 10.0f, m_half_width);
-	param_tooltip(cb, "Half the width of the narrow band in voxel units. "
-	                  "The default value 3 is recommended for level set volumes.");
-
-	float_param(cb, "Particle Scale", &m_part_scale, 0.0f, 2.0f, m_part_scale);
-	param_tooltip(cb, "The point scale attribute, which defines the world space "
-	                  "particle radius, will be scaled by this.  A value of one is assumed "
-		              "if the scale attribute is missing.");
-
-	float_param(cb, "Minimum Radius", &m_min_radius, 0.0f, 2.0f, m_min_radius);
-	param_tooltip(cb, "Minimum radius in voxel units after scaling.  "
-	                  "Particles smaller than this limit are ignored.");
-
-	bool_param(cb, "Velocity Trails", &m_velocity_trails, m_velocity_trails);
-	param_tooltip(cb, "Velocity trail splatting toggle.  Note this feature "
-	                  "requires a velocity point attribute.");
-
-	float_param(cb, "Velocity Scale", &m_vel_scale, 0.0f, 1.0f, m_vel_scale);
-	param_tooltip(cb, "Scales the velocity point attribute 'v'.  Use "
-	                  "this parameter to control the length of the velocity trails.");
-
-	float_param(cb, "Trail Resolution", &m_trail_res, 0.2f, 2.0f, m_trail_res);
-	param_tooltip(cb, "Defines the distance between particle instances.  Use this "
-	                  "parameter to control aliasing and number of particle instances.");
-}
-
 void NodeOpenVDBFromParticles::process()
 {
 	auto prim = getInputPrimitive("Points");
@@ -239,6 +241,11 @@ void NodeOpenVDBFromParticles::process()
 		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
+
+	const auto m_voxel_size = eval_float("Voxel Size");
+	const auto m_half_width = eval_float("Half Width");
+	const auto m_part_scale = eval_float("Particle Scale");
+	const auto m_vel_scale = eval_float("Velocity Scale");
 
 	ParticleList list(static_cast<PrimPoints *>(prim), m_part_scale, m_vel_scale);
 

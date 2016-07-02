@@ -23,7 +23,6 @@
  */
 
 #include <kamikaze/nodes.h>
-#include <kamikaze/paramfactory.h>
 #include <openvdb/tools/Prune.h>
 
 #include "util_openvdb_process.h"
@@ -38,13 +37,10 @@ enum {
 };
 
 class NodePrune : public Node {
-	int mode;
-	float tolerance;
 
 public:
 	NodePrune();
 
-	void setUIParams(ParamCallback *cb) override;
 	void process() override;
 };
 
@@ -82,17 +78,17 @@ NodePrune::NodePrune()
 {
 	addInput("VDB");
 	addOutput("VDB");
-}
 
-void NodePrune::setUIParams(ParamCallback *cb)
-{
-	const char *mode_items[] = {
-	    "Value", "Inactive", "Level Set", nullptr
-	};
+	EnumProperty mode_enum;
+	mode_enum.insert("Value",     VALUE);
+	mode_enum.insert("Inactive",  INACTIVE);
+	mode_enum.insert("Level Set", LEVEL_SET);
 
-	enum_param(cb, "Mode", &mode, mode_items, 0);
+	add_prop("Mode", property_type::prop_enum);
+	set_prop_enum_values(mode_enum);
 
-	float_param(cb, "Tolerance", &tolerance, 0.0f, 10.0f, 0.0f);
+	add_prop("Tolerance", property_type::prop_float);
+	set_prop_min_max(0.0f, 10.0f);
 }
 
 void NodePrune::process()
@@ -103,6 +99,9 @@ void NodePrune::process()
 		setOutputPrimitive("VDB", nullptr);
 		return;
 	}
+
+	const auto mode = eval_int("Mode");
+	const auto tolerance = eval_float("Tolerance");
 
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
 
