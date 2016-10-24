@@ -46,6 +46,7 @@ NodeOpenVDBTransform::NodeOpenVDBTransform()
 	addOutput("VDB");
 
 	add_prop("Translate", property_type::prop_vec3);
+	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
 	add_prop("Rotate", property_type::prop_vec3);
@@ -53,9 +54,11 @@ NodeOpenVDBTransform::NodeOpenVDBTransform()
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
 	add_prop("Scale", property_type::prop_vec3);
+	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{1.0f, 1.0f, 1.0f});
 
 	add_prop("Pivot", property_type::prop_vec3);
+	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
 	add_prop("Uniform Scale", property_type::prop_float);
