@@ -22,8 +22,10 @@
  *
  */
 
-#include <kamikaze/mesh.h>
 #include "node_openvdb.h"
+
+#include <kamikaze/mesh.h>
+#include <kamikaze/utils_glm.h>
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/MeshToVolume.h>
@@ -90,7 +92,7 @@ void NodeFromPolygons::process()
 
 		openvdb::Vec3s point;
 		for (auto n = 0ul, N = mpoints->size(); n < N; ++n) {
-			const auto &vert = (*mpoints)[n];
+			const auto &vert = mesh->matrix() * (*mpoints)[n];
 			point = transform->worldToIndex({ vert[0], vert[1], vert[2] });
 			points.push_back(point);
 		}
