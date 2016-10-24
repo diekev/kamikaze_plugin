@@ -74,20 +74,26 @@ void NodeOpenVDBRead::process()
 
 	if (!file.open()) {
 		setOutputCollection("VDB", nullptr);
-		std::cerr << "Unable to open file \'" << filename << "\'\n";
+		std::stringstream ss;
+		ss << "Unable to open file \'" << filename << "\'\n";
+		this->add_warning(ss.str());
 		return;
 	}
 
+#if 0
 	std::cerr << "Grids in file:\n";
 	for (auto iter = begin(file), eiter = end(file); iter != eiter; ++iter) {
 		std::cerr << *iter << "\n";
 	}
+#endif
 
 	const auto gridname = eval_string("Grid Name");
 
 	if (gridname.size() == 0 || !file.hasGrid(gridname)) {
 		setOutputCollection("VDB", nullptr);
-		std::cerr << "Cannot lookup \'" << gridname << "\' in file.\n";
+		std::stringstream ss;
+		ss << "Cannot lookup \'" << gridname << "\' in file.\n";
+		this->add_warning(ss.str());
 		return;
 	}
 

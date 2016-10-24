@@ -59,32 +59,32 @@ public:
 /* ************************************************************************** */
 
 enum {
-    OP_COPY_A = 0,        /* A */
-    OP_COPY_B,            /* B */
-    OP_INVERT,            /* 1 - A */
-    OP_ADD,               /* A + B */
-    OP_SUBTRACT,          /* A - B */
-    OP_MULTIPLY,          /* A * B */
-    OP_DIVIDE,            /* A / B */
-    OP_MAXIMUM,           /* max(A, B) */
-    OP_MINIMUM,           /* min(A, B) */
-    OP_BLEND1,            /* (1 - A) * B */
-    OP_BLEND2,            /* A + (1 - A) * B */
-    OP_UNION,             /* CSG A u B */
-    OP_INTERSECTION,      /* CSG A n B */
-    OP_DIFFERENCE,        /* CSG A / B */
-    OP_REPLACE,           /* replace A with B */
-    OP_TOPO_UNION,        /* A u active(B) */
-    OP_TOPO_INTERSECTION, /* A n active(B) */
-    OP_TOPO_DIFFERENCE    /* A / active(B) */
+	OP_COPY_A = 0,        /* A */
+	OP_COPY_B,            /* B */
+	OP_INVERT,            /* 1 - A */
+	OP_ADD,               /* A + B */
+	OP_SUBTRACT,          /* A - B */
+	OP_MULTIPLY,          /* A * B */
+	OP_DIVIDE,            /* A / B */
+	OP_MAXIMUM,           /* max(A, B) */
+	OP_MINIMUM,           /* min(A, B) */
+	OP_BLEND1,            /* (1 - A) * B */
+	OP_BLEND2,            /* A + (1 - A) * B */
+	OP_UNION,             /* CSG A u B */
+	OP_INTERSECTION,      /* CSG A n B */
+	OP_DIFFERENCE,        /* CSG A / B */
+	OP_REPLACE,           /* replace A with B */
+	OP_TOPO_UNION,        /* A u active(B) */
+	OP_TOPO_INTERSECTION, /* A n active(B) */
+	OP_TOPO_DIFFERENCE    /* A / active(B) */
 };
 
 enum {
-    RESAMPLE_OFF,    /* don't auto-resample grids */
-    RESAMPLE_B,      /* resample B to match A */
-    RESAMPLE_A,      /* resample A to match B */
-    RESAMPLE_HI_RES, /* resample higher-res grid to match lower-res */
-    RESAMPLE_LO_RES  /* resample lower-res grid to match higher-res */
+	RESAMPLE_OFF,    /* don't auto-resample grids */
+	RESAMPLE_B,      /* resample B to match A */
+	RESAMPLE_A,      /* resample A to match B */
+	RESAMPLE_HI_RES, /* resample higher-res grid to match lower-res */
+	RESAMPLE_LO_RES  /* resample lower-res grid to match higher-res */
 };
 
 enum {
@@ -117,29 +117,29 @@ namespace {
 /* Functor to compute scale * grid + offset, for scalars scale and offset */
 template<typename GridT>
 struct MulAdd {
-    typedef typename GridT::ValueType ValueT;
-    typedef typename GridT::Ptr GridPtrT;
+	typedef typename GridT::ValueType ValueT;
+	typedef typename GridT::Ptr GridPtrT;
 
-    float scale, offset;
+	float scale, offset;
 
-    explicit MulAdd(float s, float t = 0.0)
+	explicit MulAdd(float s, float t = 0.0)
 	    : scale(s)
 	    , offset(t)
 	{}
 
-    void operator()(const ValueT &a, const ValueT&, ValueT &out) const
+	void operator()(const ValueT &a, const ValueT&, ValueT &out) const
 	{
 		out = static_cast<ValueT>(a * scale + offset);
 	}
 
-    //* @return true if the scale is 1 and the offset is 0 */
-    bool isIdentity() const
-    {
-        return (openvdb::math::isApproxEqual(scale, 1.f, 1.0e-6f)
-            && openvdb::math::isApproxEqual(offset, 0.f, 1.0e-6f));
-    }
+	//* @return true if the scale is 1 and the offset is 0 */
+	bool isIdentity() const
+	{
+		return (openvdb::math::isApproxEqual(scale, 1.f, 1.0e-6f)
+		        && openvdb::math::isApproxEqual(offset, 0.f, 1.0e-6f));
+	}
 
-    //* Compute dest = src * scale + offset */
+	//* Compute dest = src * scale + offset */
 	void process(const GridT &src, GridPtrT &dest) const
 	{
 		if (isIdentity()) {
@@ -164,15 +164,15 @@ struct MulAdd {
 /* Functor to compute (1 - A) * B for grids A and B */
 template<typename ValueT>
 struct Blend1 {
-    float aMult, bMult;
-    const ValueT ONE;
-    explicit Blend1(float a = 1.0, float b = 1.0)
+	float aMult, bMult;
+	const ValueT ONE;
+	explicit Blend1(float a = 1.0, float b = 1.0)
 	    : aMult(a)
 	    , bMult(b)
 	    , ONE(openvdb::zeroVal<ValueT>() + 1)
 	{}
 
-    void operator()(const ValueT &a, const ValueT &b, ValueT &out) const
+	void operator()(const ValueT &a, const ValueT &b, ValueT &out) const
 	{
 		out = ValueT((ONE - aMult * a) * bMult * b);
 	}
@@ -183,16 +183,16 @@ struct Blend1 {
 //* Functor to compute A + (1 - A) * B for grids A and B */
 template<typename ValueT>
 struct Blend2 {
-    float aMult, bMult;
-    const ValueT ONE;
+	float aMult, bMult;
+	const ValueT ONE;
 
-    explicit Blend2(float a = 1.0, float b = 1.0)
+	explicit Blend2(float a = 1.0, float b = 1.0)
 	    : aMult(a)
 	    , bMult(b)
 	    , ONE(openvdb::zeroVal<ValueT>() + 1)
 	{}
 
-    void operator()(const ValueT &a, const ValueT &b, ValueT &out) const
+	void operator()(const ValueT &a, const ValueT &b, ValueT &out) const
 	{
 		out = ValueT(a*aMult);
 		out = out + ValueT((ONE - out) * bMult*b);
@@ -204,33 +204,33 @@ struct Blend2 {
 /* Helper class to compare both scalar and vector values */
 template<typename ValueT>
 struct ApproxEq {
-    const ValueT &a, &b;
-    ApproxEq(const ValueT &_a, const ValueT &_b)
+	const ValueT &a, &b;
+	ApproxEq(const ValueT &_a, const ValueT &_b)
 	    : a(_a)
 	    , b(_b)
 	{}
 
-    operator bool() const
+	operator bool() const
 	{
-        return openvdb::math::isRelOrApproxEqual(
-            a, b, /*rel*/ValueT(1e-6f), /*abs*/ValueT(1e-8f));
-    }
+		return openvdb::math::isRelOrApproxEqual(
+		            a, b, /*rel*/ValueT(1e-6f), /*abs*/ValueT(1e-8f));
+	}
 };
 
 /* Specialization for Vec2 */
 template<typename T>
 struct ApproxEq<openvdb::math::Vec2<T> > {
-    typedef openvdb::math::Vec2<T> VecT;
-    typedef typename VecT::value_type ValueT;
+	typedef openvdb::math::Vec2<T> VecT;
+	typedef typename VecT::value_type ValueT;
 
-    const VecT &a, &b;
+	const VecT &a, &b;
 
-    ApproxEq(const VecT &_a, const VecT &_b)
+	ApproxEq(const VecT &_a, const VecT &_b)
 	    : a(_a)
 	    , b(_b)
 	{}
 
-    operator bool() const
+	operator bool() const
 	{
 		return a.eq(b, /*abs=*/ValueT(1e-8f));
 	}
@@ -239,17 +239,17 @@ struct ApproxEq<openvdb::math::Vec2<T> > {
 /* Specialization for Vec3 */
 template<typename T>
 struct ApproxEq<openvdb::math::Vec3<T> > {
-    typedef openvdb::math::Vec3<T> VecT;
-    typedef typename VecT::value_type ValueT;
+	typedef openvdb::math::Vec3<T> VecT;
+	typedef typename VecT::value_type ValueT;
 
-    const VecT &a, &b;
+	const VecT &a, &b;
 
-    ApproxEq(const VecT &_a, const VecT &_b)
+	ApproxEq(const VecT &_a, const VecT &_b)
 	    : a(_a)
 	    , b(_b)
 	{}
 
-    operator bool() const
+	operator bool() const
 	{
 		return a.eq(b, /*abs=*/ValueT(1e-8f));
 	}
@@ -258,17 +258,17 @@ struct ApproxEq<openvdb::math::Vec3<T> > {
 /* Specialization for Vec4 */
 template<typename T>
 struct ApproxEq<openvdb::math::Vec4<T> > {
-    typedef openvdb::math::Vec4<T> VecT;
-    typedef typename VecT::value_type ValueT;
+	typedef openvdb::math::Vec4<T> VecT;
+	typedef typename VecT::value_type ValueT;
 
-    const VecT &a, &b;
+	const VecT &a, &b;
 
-    ApproxEq(const VecT &_a, const VecT &_b)
+	ApproxEq(const VecT &_a, const VecT &_b)
 	    : a(_a)
 	    , b(_b)
 	{}
 
-    operator bool() const
+	operator bool() const
 	{
 		return a.eq(b, /*abs=*/ValueT(1e-8f));
 	}
@@ -291,13 +291,13 @@ inline bool isFinite(bool)
 
 template<typename AGridT>
 struct DispatchOp {
-    CombineOp *combineOp;
+	CombineOp *combineOp;
 
-    DispatchOp(CombineOp &op)
+	DispatchOp(CombineOp &op)
 	    : combineOp(&op)
 	{}
 
-    template<typename BGridT>
+	template<typename BGridT>
 	void operator()(typename BGridT::ConstPtr);
 };
 
@@ -305,232 +305,240 @@ struct DispatchOp {
 
 /* Helper class for use with UTvdbProcessTypedGrid() */
 struct CombineOp {
-    NodeOpenVDBCombine *self = nullptr;
-    int op;
-    int resample;
-    std::string aGridName, bGridName;
-    openvdb::GridBase::Ptr aBaseGrid, bBaseGrid;
-    openvdb::GridBase::Ptr outGrid;
+	NodeOpenVDBCombine *self = nullptr;
+	int op;
+	int resample;
+	std::string aGridName, bGridName;
+	openvdb::GridBase::Ptr aBaseGrid, bBaseGrid;
+	openvdb::GridBase::Ptr outGrid;
 	openvdb::util::NullInterrupter interupter;
 
-    CombineOp() = default;
+	CombineOp() = default;
 
-    /* Functor for use with UTvdbProcessTypedGridScalar() to return */
-    /* a scalar grid's background value as a floating-point quantity */
-    struct BackgroundOp {
-        double value = 0.0;
+	/* Functor for use with UTvdbProcessTypedGridScalar() to return */
+	/* a scalar grid's background value as a floating-point quantity */
+	struct BackgroundOp {
+		double value = 0.0;
 
-        BackgroundOp() = default;
+		BackgroundOp() = default;
 
-        template<typename GridT>
+		template<typename GridT>
 		void operator()(const GridT &grid)
 		{
-            value = static_cast<double>(grid.background());
-        }
-    };
+			value = static_cast<double>(grid.background());
+		}
+	};
 
-    static double getScalarBackgroundValue(const openvdb::GridBase &baseGrid)
-    {
-        BackgroundOp bgOp;
-        process_grid_real(baseGrid, get_grid_storage(baseGrid), bgOp);
-        return bgOp.value;
-    }
+	static double getScalarBackgroundValue(const openvdb::GridBase &baseGrid)
+	{
+		BackgroundOp bgOp;
+		process_grid_real(baseGrid, get_grid_storage(baseGrid), bgOp);
+		return bgOp.value;
+	}
 
-    template<typename GridT>
-    typename GridT::Ptr resampleToMatch(const GridT &src, const openvdb::GridBase &ref, int order)
-    {
-        typedef typename GridT::ValueType ValueT;
+	template<typename GridT>
+	typename GridT::Ptr resampleToMatch(const GridT &src, const openvdb::GridBase &ref, int order)
+	{
+		typedef typename GridT::ValueType ValueT;
 
-        const auto ZERO = openvdb::zeroVal<ValueT>();
-        const auto &refXform = ref.constTransform();
+		const auto ZERO = openvdb::zeroVal<ValueT>();
+		const auto &refXform = ref.constTransform();
 
-        typename GridT::Ptr dest;
+		typename GridT::Ptr dest;
 
-        if (src.getGridClass() == openvdb::GRID_LEVEL_SET) {
-            /* For level set grids, use the level set rebuild tool to both resample the */
-            /* source grid to match the reference grid and to rebuild the resulting level set. */
-            const ValueT halfWidth = ((ref.getGridClass() == openvdb::GRID_LEVEL_SET)
-                ? ValueT(ZERO + this->getScalarBackgroundValue(ref) * (1.0 / ref.voxelSize()[0]))
-                : ValueT(src.background() * (1.0 / src.voxelSize()[0])));
+		if (src.getGridClass() == openvdb::GRID_LEVEL_SET) {
+			/* For level set grids, use the level set rebuild tool to both resample the */
+			/* source grid to match the reference grid and to rebuild the resulting level set. */
+			const ValueT halfWidth = ((ref.getGridClass() == openvdb::GRID_LEVEL_SET)
+			                          ? ValueT(ZERO + this->getScalarBackgroundValue(ref) * (1.0 / ref.voxelSize()[0]))
+			                         : ValueT(src.background() * (1.0 / src.voxelSize()[0])));
 
-            if (!isFinite(halfWidth)) {
-                std::stringstream msg;
-                msg << "Resample to match: Illegal narrow band width = " << halfWidth
-                    << ", caused by grid '" << src.getName() << "' with background "
-                    << this->getScalarBackgroundValue(ref);
-                throw std::invalid_argument(msg.str());
-            }
+			if (!isFinite(halfWidth)) {
+				std::stringstream msg;
+				msg << "Resample to match: Illegal narrow band width = " << halfWidth
+				    << ", caused by grid '" << src.getName() << "' with background "
+				    << this->getScalarBackgroundValue(ref);
+				throw std::invalid_argument(msg.str());
+			}
 
-            try {
-                dest = openvdb::tools::doLevelSetRebuild(src, /*iso=*/ZERO,
-                    /*exWidth=*/halfWidth, /*inWidth=*/halfWidth, &refXform, &interupter);
-            }
+			try {
+				dest = openvdb::tools::doLevelSetRebuild(src, /*iso=*/ZERO,
+				                                         /*exWidth=*/halfWidth, /*inWidth=*/halfWidth, &refXform, &interupter);
+			}
 			catch (openvdb::TypeError&) {
-                std::cerr << "skipped rebuild of level set grid " + src.getName() + " of type " + src.type();
-                dest.reset();
-            }
-        }
+				std::stringstream ss;
+				ss << "skipped rebuild of level set grid " + src.getName() + " of type " + src.type();
+				self->add_warning(ss.str());
+				dest.reset();
+			}
+		}
 
-        if (!dest && src.constTransform() != refXform) {
-            /* For non-level set grids or if level set rebuild failed due to an unsupported */
-            /* grid type, use the grid transformer tool to resample the source grid to match */
-            /* the reference grid. */
-            dest = src.copy(openvdb::CP_NEW);
-            dest->setTransform(refXform.copy());
+		if (!dest && src.constTransform() != refXform) {
+			/* For non-level set grids or if level set rebuild failed due to an unsupported */
+			/* grid type, use the grid transformer tool to resample the source grid to match */
+			/* the reference grid. */
+			dest = src.copy(openvdb::CP_NEW);
+			dest->setTransform(refXform.copy());
 
-            using namespace openvdb;
+			using namespace openvdb;
 
-            switch (order) {
+			switch (order) {
 				case 0:
-						tools::resampleToMatch<tools::PointSampler>(src, *dest);
-						break;
+					tools::resampleToMatch<tools::PointSampler>(src, *dest);
+					break;
 				case 1:
-						tools::resampleToMatch<tools::BoxSampler>(src, *dest);
-						break;
+					tools::resampleToMatch<tools::BoxSampler>(src, *dest);
+					break;
 				case 2:
-						tools::resampleToMatch<tools::QuadraticSampler>(src, *dest);
-						break;
-            }
-        }
+					tools::resampleToMatch<tools::QuadraticSampler>(src, *dest);
+					break;
+			}
+		}
 
-        return dest;
-    }
+		return dest;
+	}
 
-    /* If necessary, resample one grid so that its index space registers */
-    /* with the other grid's. */
-    /* Note that one of the grid pointers might change as a result. */
-    template<typename AGridT, typename BGridT>
-    void resampleGrids(const AGridT* &aGrid, const BGridT* &bGrid)
-    {
+	/* If necessary, resample one grid so that its index space registers */
+	/* with the other grid's. */
+	/* Note that one of the grid pointers might change as a result. */
+	template<typename AGridT, typename BGridT>
+	void resampleGrids(const AGridT* &aGrid, const BGridT* &bGrid)
+	{
 		if (!aGrid || !bGrid) {
 			return;
 		}
 
-        const auto needA = need_grid_a(op);
-        const auto needB = need_grid_b(op);
-        const auto needBoth = needA && needB;
-        const auto samplingOrder = self->eval_int("Interpolation");
+		const auto needA = need_grid_a(op);
+		const auto needB = need_grid_b(op);
+		const auto needBoth = needA && needB;
+		const auto samplingOrder = self->eval_int("Interpolation");
 
-        /* One of RESAMPLE_A, RESAMPLE_B or RESAMPLE_OFF, specifying whether */
-        /* grid A, grid B or neither grid was resampled */
-        auto resampleWhich = static_cast<int>(RESAMPLE_OFF);
+		/* One of RESAMPLE_A, RESAMPLE_B or RESAMPLE_OFF, specifying whether */
+		/* grid A, grid B or neither grid was resampled */
+		auto resampleWhich = static_cast<int>(RESAMPLE_OFF);
 
-        /* Determine which of the two grids should be resampled. */
-        if (resample == RESAMPLE_HI_RES || resample == RESAMPLE_LO_RES) {
-            const auto aVoxSize = aGrid->voxelSize();
-            const auto bVoxSize = bGrid->voxelSize();
-            const auto aVoxVol = aVoxSize[0] * aVoxSize[1] * aVoxSize[2];
+		/* Determine which of the two grids should be resampled. */
+		if (resample == RESAMPLE_HI_RES || resample == RESAMPLE_LO_RES) {
+			const auto aVoxSize = aGrid->voxelSize();
+			const auto bVoxSize = bGrid->voxelSize();
+			const auto aVoxVol = aVoxSize[0] * aVoxSize[1] * aVoxSize[2];
 			const auto bVoxVol = bVoxSize[0] * bVoxSize[1] * bVoxSize[2];
 
-            resampleWhich = ((aVoxVol > bVoxVol && resample == RESAMPLE_LO_RES)
-                || (aVoxVol < bVoxVol && resample == RESAMPLE_HI_RES))
-                ? RESAMPLE_A : RESAMPLE_B;
-        }
+			resampleWhich = ((aVoxVol > bVoxVol && resample == RESAMPLE_LO_RES)
+			                 || (aVoxVol < bVoxVol && resample == RESAMPLE_HI_RES))
+			                ? RESAMPLE_A : RESAMPLE_B;
+		}
 		else {
-            resampleWhich = resample;
-        }
+			resampleWhich = resample;
+		}
 
-        if (aGrid->constTransform() != bGrid->constTransform()) {
-            /* If the A and B grid transforms don't match, one of the grids */
-            /* should be resampled into the other's index space. */
-            if (resample == RESAMPLE_OFF) {
-                if (needBoth) {
-                    /* Resampling is disabled.  Just log a warning. */
-                    std::cerr << aGridName << " and " << bGridName << " transforms don't match\n";
-                }
-            }
+		if (aGrid->constTransform() != bGrid->constTransform()) {
+			/* If the A and B grid transforms don't match, one of the grids */
+			/* should be resampled into the other's index space. */
+			if (resample == RESAMPLE_OFF) {
+				if (needBoth) {
+					/* Resampling is disabled.  Just log a warning. */
+					std::stringstream ss;
+					ss << aGridName << " and " << bGridName << " transforms don't match\n";
+					self->add_warning(ss.str());
+				}
+			}
 			else {
-                if (needA && resampleWhich == RESAMPLE_A) {
-                    /* Resample grid A into grid B's index space. */
-                    aBaseGrid = this->resampleToMatch(*aGrid, *bGrid, samplingOrder);
-                    aGrid = static_cast<const AGridT*>(aBaseGrid.get());
-                }
+				if (needA && resampleWhich == RESAMPLE_A) {
+					/* Resample grid A into grid B's index space. */
+					aBaseGrid = this->resampleToMatch(*aGrid, *bGrid, samplingOrder);
+					aGrid = static_cast<const AGridT*>(aBaseGrid.get());
+				}
 				else if (needB && resampleWhich == RESAMPLE_B) {
-                    /* Resample grid B into grid A's index space. */
-                    bBaseGrid = this->resampleToMatch(*bGrid, *aGrid, samplingOrder);
-                    bGrid = static_cast<const BGridT*>(bBaseGrid.get());
-                }
-            }
-        }
+					/* Resample grid B into grid A's index space. */
+					bBaseGrid = this->resampleToMatch(*bGrid, *aGrid, samplingOrder);
+					bGrid = static_cast<const BGridT*>(bBaseGrid.get());
+				}
+			}
+		}
 
-        if (aGrid->getGridClass() == openvdb::GRID_LEVEL_SET &&
-            bGrid->getGridClass() == openvdb::GRID_LEVEL_SET)
-        {
-            /* If both grids are level sets, ensure that their background values match. */
-            /* (If one of the grids was resampled, then the background values should */
-            /* already match.) */
-            const double
-                a = this->getScalarBackgroundValue(*aGrid),
-                b = this->getScalarBackgroundValue(*bGrid);
-            if (!ApproxEq<double>(a, b)) {
-                if (resample == RESAMPLE_OFF) {
-                    if (needBoth) {
-                        /* Resampling/rebuilding is disabled.  Just log a warning. */
-                        std::cerr << aGridName << " and " << bGridName
-						          << " background values don't match ("
-						          << std::setprecision(3) << a << " vs. " << b << ");\n"
-						          << "                 the output grid will not be a valid level set\n";
-                    }
-                }
+		if (aGrid->getGridClass() == openvdb::GRID_LEVEL_SET &&
+		    bGrid->getGridClass() == openvdb::GRID_LEVEL_SET)
+		{
+			/* If both grids are level sets, ensure that their background values match. */
+			/* (If one of the grids was resampled, then the background values should */
+			/* already match.) */
+			const double
+			        a = this->getScalarBackgroundValue(*aGrid),
+			        b = this->getScalarBackgroundValue(*bGrid);
+			if (!ApproxEq<double>(a, b)) {
+				if (resample == RESAMPLE_OFF) {
+					if (needBoth) {
+						/* Resampling/rebuilding is disabled.  Just log a warning. */
+						std::stringstream ss;
+						ss << aGridName << " and " << bGridName
+						   << " background values don't match ("
+						   << std::setprecision(3) << a << " vs. " << b << ");\n"
+						   << "                 the output grid will not be a valid level set\n";
+						self->add_warning(ss.str());
+					}
+				}
 				else {
-                    /* One of the two grids needs a level set rebuild. */
-                    if (needA && resampleWhich == RESAMPLE_A) {
-                        /* Rebuild A to match B's background value. */
-                        aBaseGrid = this->resampleToMatch(*aGrid, *bGrid, samplingOrder);
-                        aGrid = static_cast<const AGridT*>(aBaseGrid.get());
-                    }
+					/* One of the two grids needs a level set rebuild. */
+					if (needA && resampleWhich == RESAMPLE_A) {
+						/* Rebuild A to match B's background value. */
+						aBaseGrid = this->resampleToMatch(*aGrid, *bGrid, samplingOrder);
+						aGrid = static_cast<const AGridT*>(aBaseGrid.get());
+					}
 					else if (needB && resampleWhich == RESAMPLE_B) {
-                        /* Rebuild B to match A's background value. */
-                        bBaseGrid = this->resampleToMatch(*bGrid, *aGrid, samplingOrder);
-                        bGrid = static_cast<const BGridT*>(bBaseGrid.get());
-                    }
-                }
-            }
-        }
-    }
+						/* Rebuild B to match A's background value. */
+						bBaseGrid = this->resampleToMatch(*bGrid, *aGrid, samplingOrder);
+						bGrid = static_cast<const BGridT*>(bBaseGrid.get());
+					}
+				}
+			}
+		}
+	}
 
-    void checkVectorTypes(const openvdb::GridBase* aGrid, const openvdb::GridBase* bGrid)
-    {
+	void checkVectorTypes(const openvdb::GridBase* aGrid, const openvdb::GridBase* bGrid)
+	{
 		if (!aGrid || !bGrid || !need_grid_a(op) || !need_grid_b(op)) {
 			return;
 		}
 
-        switch (op) {
-            case OP_TOPO_UNION:
-            case OP_TOPO_INTERSECTION:
-            case OP_TOPO_DIFFERENCE:
-                /* No need to warn about different vector types for topology-only operations. */
-                break;
+		switch (op) {
+			case OP_TOPO_UNION:
+			case OP_TOPO_INTERSECTION:
+			case OP_TOPO_DIFFERENCE:
+				/* No need to warn about different vector types for topology-only operations. */
+				break;
 
-            default:
-            {
-                const auto aVecType = aGrid->getVectorType();
-                const auto bVecType = bGrid->getVectorType();
+			default:
+			{
+				const auto aVecType = aGrid->getVectorType();
+				const auto bVecType = bGrid->getVectorType();
 
-                if (aVecType != bVecType) {
-                    std::cerr << aGridName << " and " << bGridName
-                        << " have different vector types\n"
-                        << "                 (" << openvdb::GridBase::vecTypeToString(aVecType)
-                        << " vs. " << openvdb::GridBase::vecTypeToString(bVecType) << ")";
-                }
+				if (aVecType != bVecType) {
+					std::stringstream ss;
+					ss << aGridName << " and " << bGridName
+					   << " have different vector types\n"
+					   << "                 (" << openvdb::GridBase::vecTypeToString(aVecType)
+					   << " vs. " << openvdb::GridBase::vecTypeToString(bVecType) << ")";
+					self->add_warning(ss.str());
+				}
 
-                break;
-            }
-        }
-    }
+				break;
+			}
+		}
+	}
 
-    /* Combine two grids of the same type. */
-    template<typename GridT>
-    void combineSameType()
-    {
-        typedef typename GridT::ValueType ValueT;
+	/* Combine two grids of the same type. */
+	template<typename GridT>
+	void combineSameType()
+	{
+		typedef typename GridT::ValueType ValueT;
 
 		const auto needA = need_grid_a(op);
-        const auto needB = need_grid_b(op);
-        const auto aMult = self->eval_float("A Multiplier");
-        const auto bMult = self->eval_float("B Multiplier");
+		const auto needB = need_grid_b(op);
+		const auto aMult = self->eval_float("A Multiplier");
+		const auto bMult = self->eval_float("B Multiplier");
 
-        const GridT *aGrid = NULL, *bGrid = NULL;
+		const GridT *aGrid = NULL, *bGrid = NULL;
 
 		if (aBaseGrid) {
 			aGrid = VDB_grid_cast<GridT>(aBaseGrid).get();
@@ -548,148 +556,148 @@ struct CombineOp {
 			throw std::runtime_error("missing B grid");
 		}
 
-        /* Warn if combining vector grids with different vector types. */
-        if (needA && needB && openvdb::VecTraits<ValueT>::IsVec) {
-            this->checkVectorTypes(aGrid, bGrid);
-        }
+		/* Warn if combining vector grids with different vector types. */
+		if (needA && needB && openvdb::VecTraits<ValueT>::IsVec) {
+			this->checkVectorTypes(aGrid, bGrid);
+		}
 
-        /* If necessary, resample one grid so that its index space */
-        /* registers with the other grid's. */
+		/* If necessary, resample one grid so that its index space */
+		/* registers with the other grid's. */
 		if (aGrid && bGrid) {
 			this->resampleGrids(aGrid, bGrid);
 		}
 
-        const auto ZERO = openvdb::zeroVal<ValueT>();
+		const auto ZERO = openvdb::zeroVal<ValueT>();
 
-        /* A temporary grid is needed for binary operations, because they */
-        /* cannibalize the B grid. */
-        typename GridT::Ptr resultGrid, tempGrid;
+		/* A temporary grid is needed for binary operations, because they */
+		/* cannibalize the B grid. */
+		typename GridT::Ptr resultGrid, tempGrid;
 
-        switch (op) {
-            case OP_COPY_A:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                break;
+		switch (op) {
+			case OP_COPY_A:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				break;
 
-            case OP_COPY_B:
-                MulAdd<GridT>(bMult).process(*bGrid, resultGrid);
-                break;
+			case OP_COPY_B:
+				MulAdd<GridT>(bMult).process(*bGrid, resultGrid);
+				break;
 
-            case OP_INVERT:
-                MulAdd<GridT>(-aMult, 1.0).process(*aGrid, resultGrid);
-                break;
+			case OP_INVERT:
+				MulAdd<GridT>(-aMult, 1.0).process(*aGrid, resultGrid);
+				break;
 
-            case OP_ADD:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compSum(*resultGrid, *tempGrid);
-                break;
+			case OP_ADD:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compSum(*resultGrid, *tempGrid);
+				break;
 
-            case OP_SUBTRACT:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(-bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compSum(*resultGrid, *tempGrid);
-                break;
+			case OP_SUBTRACT:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(-bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compSum(*resultGrid, *tempGrid);
+				break;
 
-            case OP_MULTIPLY:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compMul(*resultGrid, *tempGrid);
-                break;
+			case OP_MULTIPLY:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compMul(*resultGrid, *tempGrid);
+				break;
 
-            case OP_DIVIDE:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compDiv(*resultGrid, *tempGrid);
-                break;
+			case OP_DIVIDE:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compDiv(*resultGrid, *tempGrid);
+				break;
 
-            case OP_MAXIMUM:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compMax(*resultGrid, *tempGrid);
-                break;
+			case OP_MAXIMUM:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compMax(*resultGrid, *tempGrid);
+				break;
 
-            case OP_MINIMUM:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compMin(*resultGrid, *tempGrid);
-                break;
+			case OP_MINIMUM:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compMin(*resultGrid, *tempGrid);
+				break;
 
-            case OP_BLEND1: /* (1 - A) * B */
-            {
-                const Blend1<ValueT> comp(aMult, bMult);
-                ValueT bg;
-                comp(aGrid->background(), ZERO, bg);
-                resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
+			case OP_BLEND1: /* (1 - A) * B */
+			{
+				const Blend1<ValueT> comp(aMult, bMult);
+				ValueT bg;
+				comp(aGrid->background(), ZERO, bg);
+				resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
 
-                openvdb::tools::changeBackground(resultGrid->tree(), bg);
-                resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
-                break;
-            }
-            case OP_BLEND2: /* A + (1 - A) * B */
-            {
-                const Blend2<ValueT> comp(aMult, bMult);
-                ValueT bg;
-                comp(aGrid->background(), ZERO, bg);
-                resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
-                openvdb::tools::changeBackground(resultGrid->tree(), bg);
-                resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
-                break;
-            }
+				openvdb::tools::changeBackground(resultGrid->tree(), bg);
+				resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
+				break;
+			}
+			case OP_BLEND2: /* A + (1 - A) * B */
+			{
+				const Blend2<ValueT> comp(aMult, bMult);
+				ValueT bg;
+				comp(aGrid->background(), ZERO, bg);
+				resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
+				openvdb::tools::changeBackground(resultGrid->tree(), bg);
+				resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
+				break;
+			}
 
-            case OP_UNION:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::csgUnion(*resultGrid, *tempGrid);
-                break;
+			case OP_UNION:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::csgUnion(*resultGrid, *tempGrid);
+				break;
 
-            case OP_INTERSECTION:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::csgIntersection(*resultGrid, *tempGrid);
-                break;
+			case OP_INTERSECTION:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::csgIntersection(*resultGrid, *tempGrid);
+				break;
 
-            case OP_DIFFERENCE:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::csgDifference(*resultGrid, *tempGrid);
-                break;
+			case OP_DIFFERENCE:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::csgDifference(*resultGrid, *tempGrid);
+				break;
 
-            case OP_REPLACE:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
-                openvdb::tools::compReplace(*resultGrid, *tempGrid);
-                break;
+			case OP_REPLACE:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				MulAdd<GridT>(bMult).process(*bGrid, tempGrid);
+				openvdb::tools::compReplace(*resultGrid, *tempGrid);
+				break;
 
-            case OP_TOPO_UNION:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                /* Note: no need to scale the B grid for topology-only operations. */
-                resultGrid->topologyUnion(*bGrid);
-                break;
+			case OP_TOPO_UNION:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				/* Note: no need to scale the B grid for topology-only operations. */
+				resultGrid->topologyUnion(*bGrid);
+				break;
 
-            case OP_TOPO_INTERSECTION:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                resultGrid->topologyIntersection(*bGrid);
-                break;
+			case OP_TOPO_INTERSECTION:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				resultGrid->topologyIntersection(*bGrid);
+				break;
 
-            case OP_TOPO_DIFFERENCE:
-                MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
-                resultGrid->topologyDifference(*bGrid);
-                break;
-        }
+			case OP_TOPO_DIFFERENCE:
+				MulAdd<GridT>(aMult).process(*aGrid, resultGrid);
+				resultGrid->topologyDifference(*bGrid);
+				break;
+		}
 
-        outGrid = this->postprocess<GridT>(resultGrid);
-    }
+		outGrid = this->postprocess<GridT>(resultGrid);
+	}
 
-    /* Combine two grids of different types. */
-    //* @todo Currently, only topology operations can be performed on grids of different types. */
-    template<typename AGridT, typename BGridT>
-    void combineDifferentTypes()
-    {
+	/* Combine two grids of different types. */
+	//* @todo Currently, only topology operations can be performed on grids of different types. */
+	template<typename AGridT, typename BGridT>
+	void combineDifferentTypes()
+	{
 		const auto needA = need_grid_a(op);
-        const auto needB = need_grid_b(op);
+		const auto needB = need_grid_b(op);
 
-        const AGridT* aGrid = NULL;
-        const BGridT* bGrid = NULL;
+		const AGridT* aGrid = NULL;
+		const BGridT* bGrid = NULL;
 
 		if (aBaseGrid) {
 			aGrid = VDB_grid_cast<AGridT>(aBaseGrid).get();
@@ -707,109 +715,111 @@ struct CombineOp {
 			throw std::runtime_error("missing B grid");
 		}
 
-        /* Warn if combining vector grids with different vector types. */
-        if (needA && needB && openvdb::VecTraits<typename AGridT::ValueType>::IsVec
-            && openvdb::VecTraits<typename BGridT::ValueType>::IsVec)
-        {
-            this->checkVectorTypes(aGrid, bGrid);
-        }
+		/* Warn if combining vector grids with different vector types. */
+		if (needA && needB && openvdb::VecTraits<typename AGridT::ValueType>::IsVec
+		    && openvdb::VecTraits<typename BGridT::ValueType>::IsVec)
+		{
+			this->checkVectorTypes(aGrid, bGrid);
+		}
 
-        /* If necessary, resample one grid so that its index space */
-        /* registers with the other grid's. */
+		/* If necessary, resample one grid so that its index space */
+		/* registers with the other grid's. */
 		if (aGrid && bGrid) {
 			this->resampleGrids(aGrid, bGrid);
 		}
 
-        const auto aMult = self->eval_float("A Multiplier");
+		const auto aMult = self->eval_float("A Multiplier");
 
-        typename AGridT::Ptr resultGrid;
+		typename AGridT::Ptr resultGrid;
 
-        switch (op) {
-            case OP_TOPO_UNION:
-                MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
-                /* Note: no need to scale the B grid for topology-only operations. */
-                resultGrid->topologyUnion(*bGrid);
-                break;
+		switch (op) {
+			case OP_TOPO_UNION:
+				MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
+				/* Note: no need to scale the B grid for topology-only operations. */
+				resultGrid->topologyUnion(*bGrid);
+				break;
 
-            case OP_TOPO_INTERSECTION:
-                MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
-                resultGrid->topologyIntersection(*bGrid);
-                break;
+			case OP_TOPO_INTERSECTION:
+				MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
+				resultGrid->topologyIntersection(*bGrid);
+				break;
 
-            case OP_TOPO_DIFFERENCE:
-                MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
-                resultGrid->topologyDifference(*bGrid);
-                break;
+			case OP_TOPO_DIFFERENCE:
+				MulAdd<AGridT>(aMult).process(*aGrid, resultGrid);
+				resultGrid->topologyDifference(*bGrid);
+				break;
 
-            default:
-            {
-                std::ostringstream ostr;
-                ostr << "can't combine grid " << aGridName << " of type " << aGrid->type()
-                    << "\n                 with grid " << bGridName
-                    << " of type " << bGrid->type();
-                throw std::runtime_error(ostr.str());
-                break;
-            }
-        }
+			default:
+			{
+				std::ostringstream ostr;
+				ostr << "can't combine grid " << aGridName << " of type " << aGrid->type()
+				     << "\n                 with grid " << bGridName
+				     << " of type " << bGrid->type();
+				throw std::runtime_error(ostr.str());
+				break;
+			}
+		}
 
-        outGrid = this->postprocess<AGridT>(resultGrid);
-    }
+		outGrid = this->postprocess<AGridT>(resultGrid);
+	}
 
-    template<typename GridT>
-    typename GridT::Ptr postprocess(typename GridT::Ptr resultGrid)
-    {
-        typedef typename GridT::ValueType ValueT;
+	template<typename GridT>
+	typename GridT::Ptr postprocess(typename GridT::Ptr resultGrid)
+	{
+		typedef typename GridT::ValueType ValueT;
 
-        const auto ZERO = openvdb::zeroVal<ValueT>();
-        const auto prune = self->eval_bool("Prune");
-        const auto flood = self->eval_bool("Signed-Flood-Fill Output SDFs");
-        const auto deactivate = self->eval_bool("Deactivate Background Voxels");
+		const auto ZERO = openvdb::zeroVal<ValueT>();
+		const auto prune = self->eval_bool("Prune");
+		const auto flood = self->eval_bool("Signed-Flood-Fill Output SDFs");
+		const auto deactivate = self->eval_bool("Deactivate Background Voxels");
 
-        if (deactivate) {
-            const auto deactivationTolerance = self->eval_float("Deactivate Tolerance");
+		if (deactivate) {
+			const auto deactivationTolerance = self->eval_float("Deactivate Tolerance");
 
-            /* Mark active output tiles and voxels as inactive if their */
-            /* values match the output grid's background value. */
-            /* Do this first to facilitate pruning. */
-            openvdb::tools::deactivate(*resultGrid, resultGrid->background(),
-                ValueT(ZERO + deactivationTolerance));
-        }
+			/* Mark active output tiles and voxels as inactive if their */
+			/* values match the output grid's background value. */
+			/* Do this first to facilitate pruning. */
+			openvdb::tools::deactivate(*resultGrid, resultGrid->background(),
+			                           ValueT(ZERO + deactivationTolerance));
+		}
 
-        if (flood && resultGrid->getGridClass() == openvdb::GRID_LEVEL_SET) {
-            openvdb::tools::signedFloodFill(resultGrid->tree());
-        }
+		if (flood && resultGrid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+			openvdb::tools::signedFloodFill(resultGrid->tree());
+		}
 
-        if (prune) {
-            const float tolerance = self->eval_float("Prune Tolerance");
-            openvdb::tools::prune(resultGrid->tree(), ValueT(ZERO + tolerance));
-        }
+		if (prune) {
+			const float tolerance = self->eval_float("Prune Tolerance");
+			openvdb::tools::prune(resultGrid->tree(), ValueT(ZERO + tolerance));
+		}
 
-        return resultGrid;
-    }
+		return resultGrid;
+	}
 
-    template<typename AGridT>
-    void operator()(typename AGridT::ConstPtr)
-    {
+	template<typename AGridT>
+	void operator()(typename AGridT::ConstPtr)
+	{
 		const auto needA = need_grid_a(op);
-        const auto needB = need_grid_b(op);
-        const auto needBoth = needA && needB;
+		const auto needB = need_grid_b(op);
+		const auto needBoth = needA && needB;
 
-        if (!needBoth || !aBaseGrid || !bBaseGrid || aBaseGrid->type() == bBaseGrid->type()) {
-            this->combineSameType<AGridT>();
-        }
+		if (!needBoth || !aBaseGrid || !bBaseGrid || aBaseGrid->type() == bBaseGrid->type()) {
+			this->combineSameType<AGridT>();
+		}
 		else {
-            DispatchOp<AGridT> dispatcher(*this);
+			DispatchOp<AGridT> dispatcher(*this);
 
-            /* Dispatch on the B grid's type. */
-            auto success = process_typed_grid(bBaseGrid,
+			/* Dispatch on the B grid's type. */
+			auto success = process_typed_grid(bBaseGrid,
 			                                  get_grid_storage(*bBaseGrid),
 			                                  dispatcher);
 
-            if (!success) {
-                std::cerr << "grid " << bGridName << " has unsupported type " << bBaseGrid->type();
-            }
-        }
-    }
+			if (!success) {
+				std::stringstream ss;
+				ss << "grid " << bGridName << " has unsupported type " << bBaseGrid->type();
+				self->add_warning(ss.str());
+			}
+		}
+	}
 };
 
 /* ************************************************************************** */
@@ -1038,9 +1048,11 @@ void NodeOpenVDBCombine::process()
 		const auto unusedB = (needB && (bIt.get() != nullptr));
 
 		if (unusedA || unusedB) {
-			std::cerr << "some grids were not processed because there were more "
-			          << (unusedA ? "A" : "B") << " grids than "
-			          << (unusedA ? "B" : "A") << " grids\n";
+			std::stringstream ss;
+			ss << "some grids were not processed because there were more "
+			   << (unusedA ? "A" : "B") << " grids than "
+			   << (unusedA ? "B" : "A") << " grids\n";
+			this->add_warning(ss.str());
 		}
 
 		/* TODO: find a better way to handle these actions. */
@@ -1056,7 +1068,7 @@ void NodeOpenVDBCombine::process()
 		m_collection->destroy(prims_to_delete);
 	}
 	catch (const std::exception &e) {
-		std::cerr << "NodeOpenVDBCombine::process: " << e.what() << '\n';
+		this->add_warning(e.what());
 	}
 }
 
@@ -1069,32 +1081,36 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op, openvdb::G
 	const auto needLS = need_level_sets(op);
 
 	if (!needA && !needB) {
-		throw std::runtime_error("nothing to do");
+		throw std::runtime_error("Nothing to do.");
 	}
 
 	if (needA && !aGrid) {
-		throw std::runtime_error("missing A grid");
+		throw std::runtime_error("Missing A grid.");
 	}
 
 	if (needB && !bGrid) {
-		throw std::runtime_error("missing B grid");
+		throw std::runtime_error("Missing B grid.");
 	}
 
 	if (needLS &&
 	    ((aGrid && aGrid->getGridClass() != openvdb::GRID_LEVEL_SET) ||
 	     (bGrid && bGrid->getGridClass() != openvdb::GRID_LEVEL_SET)))
 	{
-		std::cerr << "expected level set grids for the operation,\n                 found "
-		          << openvdb::GridBase::gridClassToString(aGrid->getGridClass()) << " (" << aGridName << ") and "
-		          << openvdb::GridBase::gridClassToString(bGrid->getGridClass()) << " (" << bGridName
-		          << ");\n                 the output grid will not be a valid level set\n";
+		std::stringstream ss;
+		ss << "expected level set grids for the operation,\n                 found "
+		   << openvdb::GridBase::gridClassToString(aGrid->getGridClass()) << " (" << aGridName << ") and "
+		   << openvdb::GridBase::gridClassToString(bGrid->getGridClass()) << " (" << bGridName
+		   << ");\n                 the output grid will not be a valid level set\n";
+		this->add_warning(ss.str());
 	}
 
 	if (needA && needB && aGrid->type() != bGrid->type()
 	    && op != OP_TOPO_UNION && op != OP_TOPO_INTERSECTION && op != OP_TOPO_DIFFERENCE)
 	{
-		std::cerr << "can't combine grid " << aGridName << " of type " << aGrid->type()
-		          << "\n                 with grid " << bGridName << " of type " << bGrid->type();
+		std::stringstream ss;
+		ss << "Can't combine grid " << aGridName << " of type " << aGrid->type()
+		   << "\n                 with grid " << bGridName << " of type " << bGrid->type();
+		this->add_warning(ss.str());
 		return outGrid;
 	}
 
@@ -1112,14 +1128,18 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op, openvdb::G
 	                                  compOp);
 
 	if (!success || !compOp.outGrid) {
+		std::stringstream ss;
+
 		if (aGrid->type() == bGrid->type()) {
-			std::cerr << "grids " << aGridName << " and " << bGridName
-			          << " have unsupported type " << aGrid->type();
+			ss << "Grids " << aGridName << " and " << bGridName
+			   << " have unsupported type " << aGrid->type();
 		}
 		else {
-			std::cerr << "grid " << (needA ? aGridName : bGridName)
-			          << " has unsupported type " << (needA ? aGrid->type() : bGrid->type());
+			ss << "Grid " << (needA ? aGridName : bGridName)
+			   << " has unsupported type " << (needA ? aGrid->type() : bGrid->type());
 		}
+
+		this->add_warning(ss.str());
 	}
 
 	return compOp.outGrid;

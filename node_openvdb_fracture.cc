@@ -55,6 +55,12 @@ public:
 
 	template <typename GridType>
 	void export_fragments(std::list<typename GridType::Ptr> &fracture_tool);
+
+	template <typename GridType>
+	std::list<typename GridType::Ptr> get_residuals(
+	        std::list<openvdb::GridBase::Ptr> &grids,
+	        const openvdb::math::Transform &transform,
+	        const typename GridType::ValueType backgroundValue);
 };
 
 enum {
@@ -117,7 +123,7 @@ void NodeOpenVDBFracture::process()
 		do_process();
     }
 	catch (const std::exception &e) {
-        std::cerr << "NodeOpenVDBFracture::process: " << e.what() << '\n';
+		this->add_warning(e.what());
 	}
 }
 
@@ -127,7 +133,6 @@ void NodeOpenVDBFracture::do_process()
 	const auto cutter_collection = getInputCollection("cutters");
 
     if (cutter_collection == nullptr || cutter_collection->primitives().empty()) {
-		std::cerr << "No cutters... returning!\n";
         /* All good, nothing to worry about with no cutting objects! */
         return;
     }
@@ -136,8 +141,6 @@ void NodeOpenVDBFracture::do_process()
     std::vector<Primitive *> converted_prims;
 
 	std::vector<std::string> non_level_sets, non_linear;
-
-	std::cerr << "Finding grids to process...\n";
 
 	for (Primitive *prim : primitive_iterator(m_collection, VDBVolume::id)) {
 		auto volume = static_cast<VDBVolume *>(prim);
@@ -162,23 +165,27 @@ void NodeOpenVDBFracture::do_process()
 	}
 
     if (!non_level_sets.empty()) {
-		std::cerr << "The following non level set grids were skipped: '";
+		std::stringstream ss;
 
+		ss << "The following non level set grids were skipped: '";
 		for (const auto &str : non_level_sets) {
-			std::cerr << str << ", ";
+			ss << str << ", ";
 		}
+		ss << "'.\n";
 
-		std::cerr << "'.\n";
+		this->add_warning(ss.str());
     }
 
     if (!non_linear.empty()) {
-		std::cerr << "The following grids were skipped: '";
+		std::stringstream ss;
 
-		for (const auto &str : non_level_sets) {
-			std::cerr << str << ", ";
+		ss << "The following grids were skipped: '";
+		for (const auto &str : non_linear) {
+			ss << str << ", ";
 		}
+		ss << "' because they don't have a linear/affine transform.\n";
 
-		std::cerr << "' because they don't have a linear/affine transform.\n";
+		this->add_warning(ss.str());
     }
 
     if (!grids.empty()) {
@@ -191,21 +198,22 @@ void NodeOpenVDBFracture::do_process()
             do_fracture<openvdb::DoubleGrid>(grids, cutter_collection, instance_collection);
         }
 		else {
-            std::cerr << "Unsupported grid type.\n";
+			this->add_warning("Unsupported grid type.");
         }
 
 		/* Remove the processed primitives from the collection. */
 		m_collection->destroy(converted_prims);
     }
 	else {
-         std::cerr << "No VDB grids to fracture.\n";
+		this->add_warning("No VDB grids to fracture.");
     }
 }
 
 template <typename GridType>
-static auto get_residuals(std::list<openvdb::GridBase::Ptr> &grids,
-                          const openvdb::math::Transform &transform,
-                          const typename GridType::ValueType backgroundValue)
+std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
+        std::list<openvdb::GridBase::Ptr> &grids,
+        const openvdb::math::Transform &transform,
+        const typename GridType::ValueType backgroundValue)
 {
 	std::list<typename GridType::Ptr> residuals;
 
@@ -235,33 +243,39 @@ static auto get_residuals(std::list<openvdb::GridBase::Ptr> &grids,
     grids.clear();
 
     if (!bad_transform_list.empty()) {
-		std::cerr << "The following grids were skipped: '";
+		std::stringstream ss;
 
+		ss << "The following grids were skipped: '";
 		for (const auto &str : bad_transform_list) {
-			std::cerr << str << ", ";
+			ss << str << ", ";
 		}
+		ss << "' because they don't match the transform of the first grid.\n";
 
-		std::cerr << "' because they don't match the transform of the first grid.\n";
+		this->add_warning(ss.str());
     }
 
     if (!bad_background_list.empty()) {
-		std::cerr << "The following grids were skipped: '";
+		std::stringstream ss;
 
+		ss << "The following grids were skipped: '";
 		for (const auto &str : bad_background_list) {
-			std::cerr << str << ", ";
+			ss << str << ", ";
 		}
+		ss << "' because they don't match the background value of the first grid.\n";
 
-		std::cerr << "' because they don't match the background value of the first grid.\n";
+		this->add_warning(ss.str());
     }
 
     if (!bad_type_list.empty()) {
-		std::cerr << "The following grids were skipped: '";
+		std::stringstream ss;
 
+		ss << "The following grids were skipped: '";
 		for (const auto &str : bad_type_list) {
-			std::cerr << str << ", ";
+			ss << str << ", ";
 		}
+		ss << "' because they don't have the same data type as the first grid.\n";
 
-		std::cerr << "' because they don't have the same data type as the first grid.\n";
+		this->add_warning(ss.str());
     }
 
 	return residuals;
@@ -338,8 +352,6 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
                                       PrimitiveCollection *cutterGeo,
                                       PrimitiveCollection *pointGeo)
 {
-	std::cerr << "Begin NodeOpenVDBFracture::do_fracture\n";
-
 	/* Evaluate UI parameters. */
 	const auto randomizeRotation = eval_bool("Randomize Cutter Rotation");
     const auto cutterOverlap = eval_bool("Allow Cutter Overlap");
@@ -351,7 +363,6 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
     auto firstGrid = openvdb::gridPtrCast<GridType>(grids.front());
 
     if (!firstGrid) {
-		std::cerr << "Unsupported grid type.\n";
         return;
     }
 
@@ -365,8 +376,6 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
     if (pointGeo != NULL) {
         get_instance_points(pointGeo, instancePoints, instanceRotations, randomizeRotation, seed);
     }
-
-	std::cerr << "Getting residuals...\n";
 
     auto residuals = get_residuals<GridType>(grids, *transform, backgroundValue);
 
@@ -383,8 +392,6 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 
 		std::vector<openvdb::Vec3s> points;
 		std::vector<openvdb::Vec4I> faces;
-
-		std::cerr << "Converting mesh to volume...\n";
 
 		{
 			points.reserve(mpoints->size());
@@ -413,8 +420,6 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 			return;
 		}
 
-		std::cerr << "Fracturing volume...\n";
-
 		fracture_tool.fracture(residuals, *cutterGrid, segmentFragments, &instancePoints,
 		                       &instanceRotations, cutterOverlap);
 
@@ -426,15 +431,11 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 	 * given objects, so we can suffix them.
 	 */
 
-	std::cerr << "Export residual fragments\n";
 	/* Export residual fragments. */
 	export_fragments<GridType>(residuals);
 
-	std::cerr << "Export new fragments\n";
     /* Export new fragments. */
 	export_fragments<GridType>(fracture_tool.fragments());
-
-	std::cerr << "End NodeOpenVDBFracture::do_fracture\n";
 }
 
 template <typename GridType>

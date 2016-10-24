@@ -179,7 +179,7 @@ void NodeOpenVDBMetaData::process()
 		}
 	}
 	catch (const std::exception &e) {
-		std::cerr << "NodeOpenVDBMetaData::process: " << e.what() << '\n';
+		this->add_warning(e.what());
 	}
 }
 

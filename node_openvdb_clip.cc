@@ -168,7 +168,7 @@ public:
 					}
 
 					if (!mask_grid) {
-						std::cerr << "mask VDB not found\n";
+						this->add_warning("Mask VDB not found!");
 						return;
 					}
 				}
@@ -219,17 +219,19 @@ public:
 
 	        if (num_level_sets > 0) {
 	            if (num_level_sets == 1) {
-	                std::cerr << "a level set grid was clipped;"
-	                    " the resulting grid might not be a valid level set\n";
+					this->add_warning("A level set grid was clipped, the"
+					                  " resulting grid might not be a valid"
+					                  " level set.\n");
 	            }
 				else {
-	                 std::cerr << "some level sets were clipped;"
-	                    " the resulting grids might not be valid level sets\n";
+					this->add_warning("Some level sets were clipped, the"
+					                  " resulting grids might not be a valid"
+					                  " level sets.\n");
 	            }
 	        }
 	    }
 		catch (const std::exception &e) {
-	        std::cerr << "NodeOpenVDBClip::process: " << e.what() << '\n';
+			this->add_warning(e.what());
 		}
 	}
 };

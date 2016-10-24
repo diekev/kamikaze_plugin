@@ -228,8 +228,11 @@ void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleLis
     raster.finalize(true);
 
     if (raster.ignoredParticles()) {
-        std::cerr << "Ignored " << raster.getMinCount() << " small and "
-		          << raster.getMaxCount() << " large particles (hint: change Minimum Radius in Voxels)";
+		std::stringstream ss;
+        ss << "Ignored " << raster.getMinCount() << " small and "
+		   << raster.getMaxCount() << " large particles (hint: change Minimum Radius in Voxels)";
+
+		this->add_warning(ss.str().c_str());
     }
 }
 
