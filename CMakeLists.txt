@@ -110,6 +110,7 @@ set(NODE_SRC
 	node_openvdb_read.cc
 	node_openvdb_resample.cc
 	node_openvdb_scatter.cc
+	node_openvdb_segment.cc
 	node_openvdb_to_polygons.cc
 	node_openvdb_transform.cc
 	node_openvdb_write.cc
