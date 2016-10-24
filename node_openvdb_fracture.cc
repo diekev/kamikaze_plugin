@@ -133,7 +133,7 @@ void NodeOpenVDBFracture::do_process()
     }
 
 	std::list<openvdb::GridBase::Ptr> grids;
-    std::vector<VDBVolume *> origvdbs;
+    std::vector<Primitive *> converted_prims;
 
 	std::vector<std::string> non_level_sets, non_linear;
 
@@ -158,7 +158,7 @@ void NodeOpenVDBFracture::do_process()
         grids.push_back(grid->copyGrid());
         grids.back()->setName(grid->getName());
 
-        origvdbs.push_back(volume);
+        converted_prims.push_back(prim);
 	}
 
     if (!non_level_sets.empty()) {
@@ -194,9 +194,8 @@ void NodeOpenVDBFracture::do_process()
             std::cerr << "Unsupported grid type.\n";
         }
 
-        for (auto prim : origvdbs) {
-            //m_collection->destroy_primitive(prim);
-        }
+		/* Remove the processed primitives from the collection. */
+		m_collection->destroy(converted_prims);
     }
 	else {
          std::cerr << "No VDB grids to fracture.\n";
