@@ -123,58 +123,30 @@ bool process_sdf_interior(const openvdb::GridBase &ref_grid, int storage, OpType
 
 void NodeOpenVDBScatter::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("Points", nullptr);
-		return;
-	}
-
 	const auto seed = eval_int("Random Seed");
 	const auto mode = eval_enum("Mode");
 	const auto count = eval_float("Point Count");
 	const auto interior = eval_bool("Scatter Interior");
 	const auto multiply = eval_bool("Multiply Local Density");
 
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
+	std::vector<Primitive *> primitives;
+	primitives.reserve(m_collection->primitives().size());
 
-	PrimPoints *points_prim = new PrimPoints;
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-	PointAccessor points(points_prim->points());
+		auto points_prim = new PrimPoints;
+		primitives.push_back(points_prim);
 
-	using RandGen = std::mt19937;
-	RandGen rng(seed + 198653421);
+		PointAccessor points(points_prim->points());
 
-	switch (mode) {
-		default:
-		case 0:
-		{
-			openvdb::tools::UniformPointScatter<PointAccessor, RandGen>
-                scatter(points, count, rng);
+		using RandGen = std::mt19937;
+		RandGen rng(seed + 198653421);
 
-			if (interior && is_level_set(vdb_prim)) {
-				process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-			}
-			else {
-				process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-			}
-
-			break;
-		}
-		case 1:
-		{
-			if (multiply) {
-				openvdb::tools::NonUniformPointScatter<PointAccessor, RandGen>
-	                scatter(points, count, rng);
-
-				if (interior && is_level_set(vdb_prim)) {
-					process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-				}
-				else {
-					process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-				}
-			}
-			else {
+		switch (mode) {
+			default:
+			case 0:
+			{
 				openvdb::tools::UniformPointScatter<PointAccessor, RandGen>
 	                scatter(points, count, rng);
 
@@ -184,41 +156,65 @@ void NodeOpenVDBScatter::process()
 				else {
 					process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
 				}
-			}
 
-			break;
+				break;
+			}
+			case 1:
+			{
+				if (multiply) {
+					openvdb::tools::NonUniformPointScatter<PointAccessor, RandGen>
+		                scatter(points, count, rng);
+
+					if (interior && is_level_set(vdb_prim)) {
+						process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+					}
+					else {
+						process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+					}
+				}
+				else {
+					openvdb::tools::UniformPointScatter<PointAccessor, RandGen>
+		                scatter(points, count, rng);
+
+					if (interior && is_level_set(vdb_prim)) {
+						process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+					}
+					else {
+						process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+					}
+				}
+
+				break;
+			}
+			case 2:
+			{
+				openvdb::tools::DenseUniformPointScatter<PointAccessor, RandGen>
+	                scatter(points, count, rng);
+
+				if (interior && is_level_set(vdb_prim)) {
+					process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+				}
+				else {
+					process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
+				}
+
+				break;
+			}
 		}
-		case 2:
-		{
-			openvdb::tools::DenseUniformPointScatter<PointAccessor, RandGen>
-                scatter(points, count, rng);
 
-			if (interior && is_level_set(vdb_prim)) {
-				process_sdf_interior(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-			}
-			else {
-				process_grid_real(vdb_prim->getGrid(), vdb_prim->storage(), scatter);
-			}
-
-			break;
-		}
+		points_prim->tagUpdate();
 	}
 
-	points_prim->tagUpdate();
-
-	setOutputPrimitive("Points", points_prim);
-}
-
-static Node *new_scatter_node()
-{
-	return new NodeOpenVDBScatter;
+	for (auto &prim : primitives) {
+		m_collection->add(prim);
+	}
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_scatter_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBScatter);
 }
 
 }

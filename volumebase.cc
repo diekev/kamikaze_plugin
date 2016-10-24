@@ -25,14 +25,19 @@
 
 #include <ego/utils.h>
 #include <GL/glew.h>
+
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <kamikaze/context.h>
+#include <kamikaze/renderbuffer.h>
 
 #include <openvdb/tools/GridTransformer.h>
 
 #include "util_openvdb.h"
 #include "util_openvdb_process.h"
+
+size_t VDBVolume::id = -1;
 
 const int MAX_SLICES = 512;
 
@@ -174,7 +179,7 @@ TreeTopology::TreeTopology(openvdb::GridBase::ConstPtr grid)
 	m_buffer_data->unbind();
 }
 
-void TreeTopology::render(ViewerContext *context)
+void TreeTopology::render(const ViewerContext * const context)
 {
 	if (m_program.isValid()) {
 		m_program.enable();
@@ -188,9 +193,16 @@ void TreeTopology::render(ViewerContext *context)
 	}
 }
 
+/* ************************************************************************** */
+
 VDBVolume::VDBVolume(openvdb::GridBase::Ptr grid)
 {
 	setGrid(grid);
+}
+
+VDBVolume::~VDBVolume()
+{
+	free_renderbuffer(m_renderbuffer);
 }
 
 void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
@@ -209,7 +221,15 @@ void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
 	m_max = convertOpenVDBVec(max);
 	m_dimensions = (m_max - m_min);
 
-	//updateMatrix();
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			m_matrix[i][j] = static_cast<float>(m_volume_matrix[i][j]);
+		}
+	}
+
+	m_matrix = glm::scale(m_matrix, m_dimensions);
+
+	m_inv_matrix = glm::inverse(m_matrix);
 
 	m_need_draw_update = true;
 }
@@ -224,6 +244,14 @@ void VDBVolume::prepareRenderData()
 		return;
 	}
 
+	if (m_draw_topology) {
+		m_topology.reset(new TreeTopology(m_grid));
+	}
+
+	if (!m_renderbuffer) {
+		m_renderbuffer = new RenderBuffer;
+	}
+
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
 		loadShader();
 
@@ -234,18 +262,23 @@ void VDBVolume::prepareRenderData()
 
 		m_elements = op.indices.size();
 
-		m_buffer_data.reset(new ego::BufferObject());
-		m_buffer_data->bind();
-		m_buffer_data->generateVertexBuffer(&op.vertices[0][0], op.vertices.size() * sizeof(glm::vec3));
-		m_buffer_data->generateIndexBuffer(&op.indices[0], m_elements * sizeof(GLuint));
-		m_buffer_data->attribPointer(m_program["vertex"], 3);
-		m_buffer_data->generateNormalBuffer(&op.normals[0], op.normals.size() * sizeof(GLfloat));
-		m_buffer_data->attribPointer(m_program["normal"], 3);
-		m_buffer_data->unbind();
+		m_renderbuffer->can_outline(true);
+
+		m_renderbuffer->set_vertex_buffer("vertex",
+		                                  &op.vertices[0][0],
+		                                  op.vertices.size() * sizeof(glm::vec3),
+		                                  &op.indices[0],
+		                                  m_elements * sizeof(GLuint),
+		                                  m_elements);
+
+		m_renderbuffer->set_normal_buffer("normal",
+		                                  &op.normals[0],
+		                                  op.normals.size() * sizeof(GLfloat));
 
 		ego::util::GPU_check_errors("Unable to create level set buffer");
 	}
 	else {
+#if 0
 		m_elements = m_num_slices * 6;
 
 		/* Get resolution & copy data */
@@ -269,6 +302,7 @@ void VDBVolume::prepareRenderData()
 		ego::util::GPU_check_errors("Unable to create 3D texture");
 
 		loadShader();
+#endif
 	}
 
 	m_need_data_update = false;
@@ -282,38 +316,8 @@ int VDBVolume::storage() const
 void VDBVolume::update()
 {
 	if (m_grid.get() && m_need_update) {
-		//updateMatrix();
-		updateGridTransform();
 		m_bbox.reset(new Cube(m_min, m_max));
 		m_need_update = false;
-	}
-}
-
-void VDBVolume::updateGridTransform()
-{
-	typedef openvdb::math::AffineMap AffineMap;
-	typedef openvdb::math::Transform Transform;
-
-	const openvdb::Vec3R pos = convertGLMVec(m_pos);
-	const openvdb::Vec3R scale = convertGLMVec(m_scale);
-
-	openvdb::Mat4R mat(openvdb::Mat4R::identity());
-    mat.preTranslate(pos);
-    mat.preRotate(openvdb::math::X_AXIS, glm::radians(m_rotation[0]));
-    mat.preRotate(openvdb::math::Y_AXIS, glm::radians(m_rotation[1]));
-    mat.preRotate(openvdb::math::Z_AXIS, glm::radians(m_rotation[2]));
-    mat.preScale(scale);
-    mat.preTranslate(-pos);
-    mat.preTranslate(pos);
-
-	openvdb::math::AffineMap map(mat), original_map(m_volume_matrix);
-	AffineMap::Ptr compound(new AffineMap(original_map, map));
-
-	m_grid->setTransform(Transform::Ptr(new Transform(openvdb::math::simplify(compound))));
-
-	// TODO: topology is only updated if drawn
-	if (m_draw_topology) {
-		m_topology.reset(new TreeTopology(m_grid));
 	}
 }
 
@@ -325,38 +329,40 @@ Primitive *VDBVolume::copy() const
 void VDBVolume::loadShader()
 {
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
-		m_program.load(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/object.vert"));
-		m_program.load(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/object.frag"));
-		m_program.createAndLinkProgram();
+		m_renderbuffer->set_shader_source(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/object.vert"));
+		m_renderbuffer->set_shader_source(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/object.frag"));
+		m_renderbuffer->finalize_shader();
 
-		m_program.enable();
-		{
-			m_program.addAttribute("vertex");
-			m_program.addAttribute("normal");
-			m_program.addUniform("matrix");
-			m_program.addUniform("MVP");
-			m_program.addUniform("N");
-			m_program.addUniform("for_outline");
-		}
-		m_program.disable();
+		ProgramParams params;
+		params.add_attribute("vertex");
+		params.add_attribute("normal");
+		params.add_uniform("matrix");
+		params.add_uniform("MVP");
+		params.add_uniform("N");
+		params.add_uniform("for_outline");
+
+		m_renderbuffer->set_shader_params(params);
 	}
 	else {
-		m_program.load(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/volume.vert"));
-		m_program.load(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/volume.frag"));
+		m_renderbuffer->set_shader_source(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/volume.vert"));
+		m_renderbuffer->set_shader_source(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/volume.frag"));
+		m_renderbuffer->finalize_shader();
 
-		m_program.createAndLinkProgram();
+		ProgramParams params;
+		params.add_attribute("vertex");
+		params.add_uniform("MVP");
+		params.add_uniform("offset");
+		params.add_uniform("volume");
+		params.add_uniform("lut");
+		params.add_uniform("use_lut");
+		params.add_uniform("scale");
+		params.add_uniform("matrix");
 
+		m_renderbuffer->set_shader_params(params);
+
+#if 0
 		m_program.enable();
 		{
-			m_program.addAttribute("vertex");
-			m_program.addUniform("MVP");
-			m_program.addUniform("offset");
-			m_program.addUniform("volume");
-			m_program.addUniform("lut");
-			m_program.addUniform("use_lut");
-			m_program.addUniform("scale");
-			m_program.addUniform("matrix");
-
 			glUniform1i(m_program("volume"), m_volume_texture->number());
 //			glUniform1i(m_program("lut"), m_transfer_texture->number());
 			glUniform1f(m_program("scale"), m_value_scale);
@@ -366,11 +372,13 @@ void VDBVolume::loadShader()
 		const auto &vsize = MAX_SLICES * 4 * sizeof(glm::vec3);
 		const auto &isize = MAX_SLICES * 6 * sizeof(GLuint);
 
+		m_buffer_data.reset(new ego::BufferObject());
 		m_buffer_data->bind();
 		m_buffer_data->generateVertexBuffer(nullptr, vsize);
 		m_buffer_data->generateIndexBuffer(nullptr, isize);
 		m_buffer_data->attribPointer(m_program["vertex"], 3);
 		m_buffer_data->unbind();
+#endif
 	}
 }
 
@@ -446,39 +454,28 @@ void VDBVolume::slice(const glm::vec3 &view_dir)
 		idx += 4;
 	}
 
-	m_buffer_data->updateVertexBuffer(&vertices[0][0], points.size() * sizeof(glm::vec3));
-	m_buffer_data->updateIndexBuffer(indices, idx_count * sizeof(GLuint));
+	//m_buffer_data->updateVertexBuffer(&vertices[0][0], points.size() * sizeof(glm::vec3));
+	//m_buffer_data->updateIndexBuffer(indices, idx_count * sizeof(GLuint));
 
 	delete [] indices;
 }
 
-void VDBVolume::render(ViewerContext *context, const bool for_outline)
+void VDBVolume::render(const ViewerContext &context)
 {
 	if (!m_grid.get() || m_grid->empty()) {
 		return;
 	}
 
 	if (m_draw_topology) {
-		m_topology->render(context);
+		m_topology->render(&context);
 	}
 
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
-		if (m_program.isValid()) {
-			m_program.enable();
-			m_buffer_data->bind();
-
-			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
-			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context->MVP()));
-			glUniformMatrix3fv(m_program("N"), 1, GL_FALSE, glm::value_ptr(context->normal()));
-			glUniform1i(m_program("for_outline"), for_outline);
-			glDrawElements(m_draw_type, m_elements, GL_UNSIGNED_INT, nullptr);
-
-			m_buffer_data->unbind();
-			m_program.disable();
-		}
+		m_renderbuffer->render(context);
 	}
 	else {
-		slice(context->view());
+#if 0
+		slice(context.view());
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -491,10 +488,10 @@ void VDBVolume::render(ViewerContext *context, const bool for_outline)
 
 			auto min = m_min * glm::mat3(m_inv_matrix);
 			glUniform3fv(m_program("offset"), 1, &min[0]);
-			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context->MVP()));
+			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context.MVP()));
 			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
 //			glUniform1i(m_program("use_lut"), m_use_lut);
-			glDrawElements(m_draw_type, m_elements, GL_UNSIGNED_INT, nullptr);
+			glDrawElements(GL_TRIANGLES, m_elements, GL_UNSIGNED_INT, nullptr);
 
 //			m_transfer_texture->unbind();
 			m_volume_texture->unbind();
@@ -503,6 +500,7 @@ void VDBVolume::render(ViewerContext *context, const bool for_outline)
 		}
 
 		glDisable(GL_BLEND);
+#endif
 	}
 }
 
@@ -537,9 +535,9 @@ void VDBVolume::computeBBox(glm::vec3 &min, glm::vec3 &max)
 	max = glm::vec3(wbbox.max()[0], wbbox.max()[1], wbbox.max()[2]);
 }
 
-static Primitive *create_vdb_volume()
+size_t VDBVolume::typeID() const
 {
-	return new VDBVolume();
+	return VDBVolume::id;
 }
 
 extern "C" {
@@ -551,7 +549,7 @@ void new_kamikaze_prims(PrimitiveFactory *factory)
 		return;
 	}
 
-	factory->registerType("OpenVDB Volume", create_vdb_volume);
+	VDBVolume::id = REGISTER_PRIMITIVE("OpenVDB Volume", VDBVolume);
 }
 
 }
@@ -648,4 +646,11 @@ bool LevelSet::intersectLS(const Ray &/*ray*/, Brush */*brush*/)
 bool is_vector_grid(VDBVolume *vol)
 {
 	return is_elem(vol->storage(), GRID_STORAGE_VEC3D, GRID_STORAGE_VEC3S, GRID_STORAGE_VEC3I);
+}
+
+void build_vdb_prim(PrimitiveCollection *collection, openvdb::v3_2_0::GridBase::Ptr grid)
+{
+	auto prim = collection->build("OpenVDB Volume");
+	auto vdb_prim = static_cast<VDBVolume *>(prim);
+	vdb_prim->setGrid(grid);
 }

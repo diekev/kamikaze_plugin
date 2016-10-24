@@ -88,56 +88,43 @@ float NodeNoise::evalNoise(float x, float y, float z)
 
 void NodeNoise::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-
-	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
 	using CPT = openvdb::math::CPT<openvdb::math::GenericMap, openvdb::math::CD_2ND>;
-    using StencilType = openvdb::math::SecondOrderDenseStencil<openvdb::FloatGrid>;
+	using StencilType = openvdb::math::SecondOrderDenseStencil<openvdb::FloatGrid>;
 
-	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-	StencilType stencil(*grid);  /* uses its own grid accessor */
+		if (!is_level_set(vdb_prim)) {
+			continue;
+		}
 
-	const auto &xform = grid->transform();
-	openvdb::Vec3R worldPt;  /* world coordinates  */
-	openvdb::math::GenericMap map(*grid);
-	float noise;
+		auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
-	for (auto iter = grid->beginValueOn(); iter; ++iter) {
-		stencil.moveTo(iter);
-        worldPt = xform.indexToWorld(CPT::result(map, stencil));
+		StencilType stencil(*grid);  /* uses its own grid accessor */
 
-        noise = evalNoise(worldPt.x(), worldPt.y(), worldPt.z());
+		const auto &xform = grid->transform();
+		openvdb::Vec3R worldPt;  /* world coordinates  */
+		openvdb::math::GenericMap map(*grid);
+		float noise;
 
-        iter.setValue(*iter + noise);
+		for (auto iter = grid->beginValueOn(); iter; ++iter) {
+			stencil.moveTo(iter);
+			worldPt = xform.indexToWorld(CPT::result(map, stencil));
+
+			noise = evalNoise(worldPt.x(), worldPt.y(), worldPt.z());
+
+			iter.setValue(*iter + noise);
+		}
+
+		vdb_prim->setGrid(grid);
 	}
-
-	vdb_prim->setGrid(grid);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_noise_node()
-{
-	return new NodeNoise;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_noise_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeNoise);
 }
 
 }

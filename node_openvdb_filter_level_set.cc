@@ -100,98 +100,85 @@ void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-
-	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
 	const auto type = eval_enum("Filter Type");
 	const auto accuracy = eval_enum("Accuracy");
 	const auto iterations = eval_int("Iterations");
 	const auto width = eval_int("Width");
 	const auto offset = eval_float("Offset");
 
-	auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-	FloatGrid *mask = nullptr;
-	auto mask_prim = getInputPrimitive("VDB Mask");
+		if (!is_level_set(vdb_prim)) {
+			continue;
+		}
 
-	if (mask_prim) {
-		auto mask_ls = static_cast<VDBVolume *>(mask_prim);
-		mask = (gridPtrCast<FloatGrid>(mask_ls->getGridPtr())).get();
+		auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
+
+		FloatGrid *mask = nullptr;
+		auto mask_prim = getInputCollection("VDB Mask");
+
+		if (mask_prim) {
+			auto mask_ls = static_cast<VDBVolume *>(mask_prim->primitives()[0]);
+			mask = (gridPtrCast<FloatGrid>(mask_ls->getGridPtr())).get();
+		}
+
+		typedef tools::LevelSetFilter<FloatGrid> Filter;
+
+		Filter filter(*ls_grid);
+
+		filter.setTemporalScheme(math::TVD_RK1);
+
+		switch (accuracy) {
+			case LS_FILTER_ACC_FISRT:   filter.setSpatialScheme(math::FIRST_BIAS);   break;
+			case LS_FILTER_ACC_SECOND:  filter.setSpatialScheme(math::SECOND_BIAS);  break;
+			case LS_FILTER_ACC_THIRD:   filter.setSpatialScheme(math::THIRD_BIAS);   break;
+			case LS_FILTER_ACC_WENO5:   filter.setSpatialScheme(math::WENO5_BIAS);   break;
+			case LS_FILTER_ACC_HJWENO5: filter.setSpatialScheme(math::HJWENO5_BIAS); break;
+		}
+
+		switch (type) {
+			case LS_FILTER_MEDIAN:
+				for (int i = 0; i < iterations; ++i) {
+					filter.median(width, mask);
+				}
+				break;
+			case LS_FILTER_MEAN:
+				for (int i = 0; i < iterations; ++i) {
+					filter.mean(width, mask);
+				}
+				break;
+			case LS_FILTER_GAUSSIAN:
+				for (int i = 0; i < iterations; ++i) {
+					filter.gaussian(width, mask);
+				}
+				break;
+			case LS_FILTER_MEAN_CURV:
+				for (int i = 0; i < iterations; ++i) {
+					filter.meanCurvature(mask);
+				}
+				break;
+			case LS_FILTER_LAPLACIAN:
+				for (int i = 0; i < iterations; ++i) {
+					filter.laplacian(mask);
+				}
+				break;
+			case LS_FILTER_OFFSET:
+				for (int i = 0; i < iterations; ++i) {
+					filter.offset(offset, mask);
+				}
+				break;
+		}
+
+		vdb_prim->setGrid(ls_grid);
 	}
-
-	typedef tools::LevelSetFilter<FloatGrid> Filter;
-
-	Filter filter(*ls_grid);
-
-	filter.setTemporalScheme(math::TVD_RK1);
-
-	switch (accuracy) {
-		case LS_FILTER_ACC_FISRT:   filter.setSpatialScheme(math::FIRST_BIAS);   break;
-		case LS_FILTER_ACC_SECOND:  filter.setSpatialScheme(math::SECOND_BIAS);  break;
-		case LS_FILTER_ACC_THIRD:   filter.setSpatialScheme(math::THIRD_BIAS);   break;
-		case LS_FILTER_ACC_WENO5:   filter.setSpatialScheme(math::WENO5_BIAS);   break;
-		case LS_FILTER_ACC_HJWENO5: filter.setSpatialScheme(math::HJWENO5_BIAS); break;
-	}
-
-	switch (type) {
-		case LS_FILTER_MEDIAN:
-			for (int i = 0; i < iterations; ++i) {
-				filter.median(width, mask);
-			}
-			break;
-		case LS_FILTER_MEAN:
-			for (int i = 0; i < iterations; ++i) {
-				filter.mean(width, mask);
-			}
-			break;
-		case LS_FILTER_GAUSSIAN:
-			for (int i = 0; i < iterations; ++i) {
-				filter.gaussian(width, mask);
-			}
-			break;
-		case LS_FILTER_MEAN_CURV:
-			for (int i = 0; i < iterations; ++i) {
-				filter.meanCurvature(mask);
-			}
-			break;
-		case LS_FILTER_LAPLACIAN:
-			for (int i = 0; i < iterations; ++i) {
-				filter.laplacian(mask);
-			}
-			break;
-		case LS_FILTER_OFFSET:
-			for (int i = 0; i < iterations; ++i) {
-				filter.offset(offset, mask);
-			}
-			break;
-	}
-
-	vdb_prim->setGrid(ls_grid);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_filter_node()
-{
-	return new NodeFilterLevelSet;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_filter_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeFilterLevelSet);
 }
 
 }

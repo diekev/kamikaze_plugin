@@ -119,49 +119,37 @@ void NodeFill::process()
 	const auto max = eval_vec3("Max");
 	const auto activate = eval_bool("Set Active");
 
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-
 	std::unique_ptr<FillOp> op;
 
-	switch (mode) {
-		case INDEX:
-		{
-			openvdb::math::Coord co_min((int)min[0], (int)min[1], (int)min[2]);
-			openvdb::math::Coord co_max((int)max[0], (int)min[1], (int)min[2]);
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-			op.reset(new FillOp(openvdb::math::CoordBBox(co_min, co_max), value, activate));
-			break;
+		switch (mode) {
+			case INDEX:
+			{
+				openvdb::math::Coord co_min((int)min[0], (int)min[1], (int)min[2]);
+				openvdb::math::Coord co_max((int)max[0], (int)min[1], (int)min[2]);
+
+				op.reset(new FillOp(openvdb::math::CoordBBox(co_min, co_max), value, activate));
+				break;
+			}
+			case WORLD:
+				op.reset(new FillOp(openvdb::BBoxd(&min[0], &max[0]), value, activate));
+				break;
 		}
-		case WORLD:
-			op.reset(new FillOp(openvdb::BBoxd(&min[0], &max[0]), value, activate));
-			break;
+
+		auto grid = vdb_prim->getGridPtr();
+		process_typed_grid(*grid, vdb_prim->storage(), *op);
+
+		vdb_prim->setGrid(grid);
 	}
-
-	auto grid = vdb_prim->getGridPtr();
-	process_typed_grid(*grid, vdb_prim->storage(), *op);
-
-	vdb_prim->setGrid(grid);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_fill_node()
-{
-	return new NodeFill;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_fill_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeFill);
 }
 
 }

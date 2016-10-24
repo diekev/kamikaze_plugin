@@ -161,13 +161,6 @@ void NodeResample::process()
 {
 	using namespace openvdb;
 
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
 	const auto voxel_size = eval_float("Voxel Size");
 //	const auto m_voxel_scale = eval_float("Voxel Scale");
 	const auto order = eval_int("Interpolation");
@@ -176,37 +169,32 @@ void NodeResample::process()
 //	const auto scale = eval_vec3("Scale");
 //	const auto pivot = eval_vec3("Pivot");
 
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-	auto grid = vdb_prim->getGridPtr();
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
+		auto grid = vdb_prim->getGridPtr();
 
-	auto outgrid = grid->copyGrid(CP_NEW);
+		auto outgrid = grid->copyGrid(CP_NEW);
 
-	if (is_level_set(vdb_prim)) {
-		LevelSetRebuildOp op(voxel_size);
+		if (is_level_set(vdb_prim)) {
+			LevelSetRebuildOp op(voxel_size);
 
-		process_grid_real(grid, vdb_prim->storage(), op);
-		outgrid = op.output;
+			process_grid_real(grid, vdb_prim->storage(), op);
+			outgrid = op.output;
+		}
+		else {
+			ResampleGridOp op(outgrid, voxel_size, order);
+			process_typed_grid(grid, vdb_prim->storage(), op);
+		}
+
+		vdb_prim->setGrid(outgrid);
 	}
-	else {
-		ResampleGridOp op(outgrid, voxel_size, order);
-		process_typed_grid(grid, vdb_prim->storage(), op);
-	}
-
-	vdb_prim->setGrid(outgrid);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_resample_node()
-{
-	return new NodeResample;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_resample_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeResample);
 }
 
 }

@@ -93,35 +93,22 @@ NodePrune::NodePrune()
 
 void NodePrune::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
 	const auto mode = eval_int("Mode");
 	const auto tolerance = eval_float("Tolerance");
 
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-
 	PruneOp op(mode, tolerance);
 
-	process_typed_grid(vdb_prim->getGrid(), vdb_prim->storage(), op);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_prune_node()
-{
-	return new NodePrune;
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
+		process_typed_grid(vdb_prim->getGrid(), vdb_prim->storage(), op);
+	}
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_prune_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodePrune);
 }
 
 }

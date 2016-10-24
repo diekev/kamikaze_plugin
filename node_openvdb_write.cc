@@ -55,20 +55,21 @@ NodeWrite::NodeWrite()
 
 void NodeWrite::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
 	const auto filename = eval_string("File Path");
 
-	if (!prim || filename.empty()) {
+	if (filename.empty()) {
 		return;
 	}
 
 	const auto compression = eval_enum("Compression");
 	const auto save_as_half = eval_bool("Save as Half floats");
 
-	auto ls = static_cast<VDBVolume *>(prim);
-
 	openvdb::io::File file(filename);
+
+	openvdb::GridCPtrVec grids;
+
+	openvdb::MetaMap metadatas;
+    metadatas.insertMeta("creator", openvdb::StringMetadata("Kamikaze/OpenVDBWriter"));
 
 	switch (compression) {
 		default:
@@ -83,30 +84,24 @@ void NodeWrite::process()
 			break;
 	}
 
-	if (save_as_half) {
-		ls->getGridPtr()->setSaveFloatAsHalf(true);
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
+
+		if (save_as_half) {
+			vdb_prim->getGridPtr()->setSaveFloatAsHalf(true);
+		}
+
+		grids.push_back(vdb_prim->getGridPtr()->deepCopyGrid());
 	}
 
-	openvdb::MetaMap metadatas;
-    metadatas.insertMeta("creator", openvdb::StringMetadata("Kamikaze/OpenVDBWriter"));
-
-	openvdb::GridCPtrVec grids;
-
-	grids.push_back(ls->getGridPtr()->deepCopyGrid());
-
 	file.write(grids, metadatas);
-}
-
-static Node *new_write_node()
-{
-	return new NodeWrite;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_write_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeWrite);
 }
 
 }

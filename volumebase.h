@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <ego/bufferobject.h>
+#include <ego/program.h>
 #include <ego/texture.h>
 #include <kamikaze/primitive.h>
 
@@ -37,13 +39,16 @@ public:
 	explicit TreeTopology(openvdb::GridBase::ConstPtr grid);
 	~TreeTopology() = default;
 
-	void render(ViewerContext *context);
+	void render(const ViewerContext * const context);
 };
 
 class VDBVolume : public Primitive {
 	std::unique_ptr<TreeTopology> m_topology;
-	ego::BufferObject::Ptr m_buffer_data;
-	ego::Program m_program;
+
+	RenderBuffer *m_renderbuffer = nullptr;
+
+//	ego::BufferObject::Ptr m_buffer_data;
+//	ego::Program m_program;
 	size_t m_elements;
 
 	openvdb::GridBase::Ptr m_grid;
@@ -55,8 +60,8 @@ class VDBVolume : public Primitive {
 
 	/* for volume rendering */
 
-	ego::Texture3D::Ptr m_volume_texture;
-	ego::Texture1D::Ptr m_transfer_texture;
+//	ego::Texture3D::Ptr m_volume_texture;
+//	ego::Texture1D::Ptr m_transfer_texture;
 
 	int m_num_slices = 128;
 
@@ -68,7 +73,7 @@ class VDBVolume : public Primitive {
 public:
 	VDBVolume() = default;
 	explicit VDBVolume(openvdb::GridBase::Ptr grid);
-	~VDBVolume() = default;
+	~VDBVolume();
 
 	void setGrid(openvdb::GridBase::Ptr grid);
 
@@ -89,15 +94,17 @@ public:
 	void update() override;
 
 	void prepareRenderData() override;
-	void render(ViewerContext *context, const bool for_outline) override;
-	void setCustomUIParams(ParamCallback *cb) override;
+	void render(const ViewerContext &context) override;
+	void setCustomUIParams(ParamCallback *cb);
 	void computeBBox(glm::vec3 &min, glm::vec3 &max) override;
 
 	static void registerSelf(PrimitiveFactory *factory);
 
+	static size_t id;
+	size_t typeID() const override;
+
 private:
 	void loadShader();
-	void updateGridTransform();
 	void slice(const glm::vec3 &view_dir);
 };
 
@@ -107,3 +114,5 @@ inline bool is_level_set(VDBVolume *vol)
 }
 
 bool is_vector_grid(VDBVolume *vol);
+
+void build_vdb_prim(PrimitiveCollection *collection, openvdb::GridBase::Ptr grid);

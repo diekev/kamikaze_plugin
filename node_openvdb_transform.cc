@@ -86,16 +86,6 @@ struct VectorTransformOp {
 
 void NodeOpenVDBTransform::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-	auto grid = vdb_prim->getGridPtr();
-
 	const auto translate = eval_vec3("Translate");
     const auto rotate = eval_vec3("Rotate");
     const auto pivot = eval_vec3("Pivot");
@@ -124,35 +114,33 @@ void NodeOpenVDBTransform::process()
 	// Construct an affine map.
     openvdb::math::AffineMap map(mat);
 
-	// Merge the transform's current affine representation with the new affine map.
-    openvdb::math::AffineMap::Ptr compound(
-        new openvdb::math::AffineMap(*grid->transform().baseMap()->getAffineMap(), map));
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
+		auto grid = vdb_prim->getGridPtr();
 
-	grid->setTransform(openvdb::math::Transform::Ptr(new openvdb::math::Transform(openvdb::math::simplify(compound))));
+		// Merge the transform's current affine representation with the new affine map.
+	    openvdb::math::AffineMap::Ptr compound(
+	        new openvdb::math::AffineMap(*grid->transform().baseMap()->getAffineMap(), map));
 
-	if (xform_vector &&
-	    is_vector_grid(vdb_prim) &&
-	    grid->isInWorldSpace() &&
-	    grid->getVectorType() != openvdb::VEC_INVARIANT)
-	{
-		process_grid_vector(*grid, vdb_prim->storage(), xformOp);
+		grid->setTransform(openvdb::math::Transform::Ptr(new openvdb::math::Transform(openvdb::math::simplify(compound))));
+
+		if (xform_vector &&
+		    is_vector_grid(vdb_prim) &&
+		    grid->isInWorldSpace() &&
+		    grid->getVectorType() != openvdb::VEC_INVARIANT)
+		{
+			process_grid_vector(*grid, vdb_prim->storage(), xformOp);
+		}
+
+		vdb_prim->setGrid(grid);
 	}
-
-	vdb_prim->setGrid(grid);
-
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_xform_node()
-{
-	return new NodeOpenVDBTransform;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_xform_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBTransform);
 }
 
 }

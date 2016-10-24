@@ -119,20 +119,14 @@ void NodePlatonic::process()
 			break;
 	}
 
-	auto prim = new VDBVolume(grid);
-	setOutputPrimitive("VDB", prim);
-}
-
-static Node *new_platonic_node()
-{
-	return new NodePlatonic;
+	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_platonic_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodePlatonic);
 }
 
 }

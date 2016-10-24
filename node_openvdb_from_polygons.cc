@@ -48,7 +48,7 @@ NodeFromPolygons::NodeFromPolygons()
 	addOutput("VDB");
 
 	add_prop("Voxel Size", property_type::prop_float);
-	set_prop_min_max(0.01f, 10.0f);
+	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(0.1f);
 	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
 
@@ -69,14 +69,7 @@ void NodeFromPolygons::process()
 	const auto int_band = eval_int("Interior Band");
 	const auto ext_band = eval_int("Exterior Band");
 
-	auto prim = getInputPrimitive("Mesh");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
-
-	Mesh *mesh = static_cast<Mesh *>(prim);
+	Mesh *mesh = static_cast<Mesh *>(m_collection->primitives()[0]);
 
 	const PointList *mpoints = mesh->points();
 	const PolygonList *polys = mesh->polys();
@@ -108,21 +101,17 @@ void NodeFromPolygons::process()
 	auto grid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(
 	                adapt, *transform, int_band, ext_band, 0, nullptr);
 
-	auto output_prim = new VDBVolume(grid);
+	/* TODO. */
+	m_collection->free_all();
 
-	setOutputPrimitive("VDB", output_prim);
-}
-
-static Node *new_from_polygons_node()
-{
-	return new NodeFromPolygons;
+	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_from_polygons_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeFromPolygons);
 }
 
 }

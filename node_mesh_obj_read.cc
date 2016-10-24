@@ -30,7 +30,15 @@
 
 static constexpr auto NODE_NAME = "OBJ Reader";
 
+struct MeshInfo {
+	size_t num_verts = 0;
+	size_t num_normals = 0;
+	size_t num_uvs = 0;
+	size_t num_polys = 0;
+};
+
 class NodeMeshOBJRead : public Node {
+	std::vector<MeshInfo *> m_meshes_info;
 	size_t m_num_verts = 0;
 	size_t m_num_normals = 0;
 	size_t m_num_uvs = 0;
@@ -42,6 +50,7 @@ public:
 	bool prereadObj(const std::string &filename);
 
 	void process() override;
+	void createMesh(PointList *points, int mesh_index, PolygonList *polys, Attribute *normals, MeshInfo *info, Mesh *mesh);
 };
 
 NodeMeshOBJRead::NodeMeshOBJRead()
@@ -49,7 +58,7 @@ NodeMeshOBJRead::NodeMeshOBJRead()
 {
 	addOutput("Mesh");
 
-	add_prop("Filemame", property_type::prop_input_file);
+	add_prop("Filename", property_type::prop_input_file);
 }
 
 void NodeMeshOBJRead::process()
@@ -57,20 +66,18 @@ void NodeMeshOBJRead::process()
 	const auto filename = eval_string("Filename");
 
 	if (filename.empty() || !prereadObj(filename)) {
-		setOutputPrimitive("Mesh", nullptr);
 		return;
 	}
 
-	Mesh *mesh = new Mesh;
+	if (!prereadObj(filename)) {
+		return;
+	}
 
-	PointList *points = mesh->points();
-	points->reserve(m_num_verts);
-
-	PolygonList *polys = mesh->polys();
-	polys->reserve(m_num_polys);
-
-	Attribute *normals = mesh->attribute("normal", ATTR_TYPE_VEC3);
-	normals->resize(m_num_normals);
+	MeshInfo *info;
+	Mesh *mesh = nullptr;
+	PointList *points;
+	PolygonList *polys;
+	Attribute *normals;
 	int normal_idx = 0;
 
 	std::ifstream fp_in;
@@ -85,6 +92,9 @@ void NodeMeshOBJRead::process()
 	int poly[4];
 	int uv[4];
 	int normal[4];
+
+	bool is_new_mesh = true;
+	int mesh_index = 0;
 
 	/* TODOs:
 	 * - handle cases where there are multiple objects defined in a file
@@ -102,6 +112,30 @@ void NodeMeshOBJRead::process()
 		is >> header;
 
 		if (header == "v") {
+			if (is_new_mesh) {
+				info = m_meshes_info[mesh_index++];
+
+				std::cerr << "Creating mesh: \n";
+				std::cerr << "Num verts: " << info->num_verts << '\n';
+				std::cerr << "Num polys: " << info->num_polys << '\n';
+				std::cerr << "Num normals: " << info->num_normals << '\n';
+
+				mesh = static_cast<Mesh *>(m_collection->build("Mesh"));
+
+				points = mesh->points();
+				points->reserve(info->num_verts);
+
+				polys = mesh->polys();
+				polys->reserve(info->num_polys);
+
+				normals = mesh->attribute("normal", ATTR_TYPE_VEC3);
+				normals->resize(info->num_normals);
+
+				normal_idx = 0;
+
+				is_new_mesh = false;
+			}
+
 			is >> v.x >> v.y >> v.z;
 			points->push_back(v);
 		}
@@ -118,11 +152,11 @@ void NodeMeshOBJRead::process()
 
 				poly[i] = std::stoi(faceinfo.substr(0, s1)) - 1;
 
-				if (m_num_uvs > 0) {
+				if (info->num_uvs > 0) {
 					uv[i] = std::stoi(faceinfo.substr(s1 + 1, (s2 - s1) - 1)) - 1;
 				}
 
-				if (m_num_normals > 0) {
+				if (info->num_normals > 0) {
 					normal[i] = std::stoi(faceinfo.substr(s2 + 1)) - 1;
 				}
 
@@ -130,16 +164,67 @@ void NodeMeshOBJRead::process()
 			}
 
 			if (i == 3) {
-				poly[3] = std::numeric_limits<unsigned int>::max();
+				poly[3] = INVALID_INDEX;
 			}
 
-			polys->push_back(glm::ivec4{ poly[0], poly[1], poly[2], poly[3] });
+			polys->push_back(glm::uvec4{ poly[0], poly[1], poly[2], poly[3] });
 		}
 		else if (header == "o") {
+			if (is_new_mesh) {
+
+				info = m_meshes_info[mesh_index++];
+				std::cerr << "Creating mesh: \n";
+				std::cerr << "Num verts: " << info->num_verts << '\n';
+				std::cerr << "Num polys: " << info->num_polys << '\n';
+				std::cerr << "Num normals: " << info->num_normals << '\n';
+
+				mesh = static_cast<Mesh *>(m_collection->build("Mesh"));
+
+				points = mesh->points();
+				points->reserve(info->num_verts);
+
+				polys = mesh->polys();
+				polys->reserve(info->num_polys);
+
+				normals = mesh->attribute("normal", ATTR_TYPE_VEC3);
+				normals->resize(info->num_normals);
+
+				normal_idx = 0;
+
+				is_new_mesh = false;
+			}
+
 			is >> faceinfo;
 			mesh->name(faceinfo.c_str());
 		}
 		else if (header == "g") {
+			if (is_new_mesh) {
+
+				info = m_meshes_info[mesh_index++];
+				std::cerr << "Creating mesh: \n";
+				std::cerr << "Num verts: " << info->num_verts << '\n';
+				std::cerr << "Num polys: " << info->num_polys << '\n';
+				std::cerr << "Num normals: " << info->num_normals << '\n';
+
+				mesh = static_cast<Mesh *>(m_collection->build("Mesh"));
+
+				points = mesh->points();
+				points->reserve(info->num_verts);
+
+				polys = mesh->polys();
+				polys->reserve(info->num_polys);
+
+				normals = mesh->attribute("normal", ATTR_TYPE_VEC3);
+				normals->resize(info->num_normals);
+
+				normal_idx = 0;
+
+				is_new_mesh = false;
+			}
+			else {
+				is_new_mesh = true;
+			}
+
 			is >> faceinfo;
 			mesh->name(faceinfo.c_str());
 		}
@@ -148,16 +233,15 @@ void NodeMeshOBJRead::process()
 	fp_in.close();
 
 	mesh->tagUpdate();
-
-	setOutputPrimitive("Mesh", mesh);
 }
 
 bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 {
-	m_num_verts = 0;
-	m_num_normals = 0;
-	m_num_uvs = 0;
-	m_num_polys = 0;
+	for (auto &mesh_info : m_meshes_info) {
+		delete mesh_info;
+	}
+
+	m_meshes_info.clear();
 
 	std::ifstream fp_in;
 	fp_in.open(filename.c_str());
@@ -165,6 +249,9 @@ bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 	if (!fp_in.is_open()) {
 		return false;
 	}
+
+	MeshInfo *info;
+	bool is_new_mesh = true;
 
 	while (fp_in.good()) {
 		std::string line;
@@ -177,16 +264,25 @@ bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 		const auto &header = line.substr(0, 2);
 
 		if (header.compare("v ") == 0) {
-			++m_num_verts;
+			if (is_new_mesh) {
+				info = new MeshInfo;
+				m_meshes_info.push_back(info);
+				is_new_mesh = false;
+			}
+
+			info->num_verts++;
 		}
 		else if (header.compare("vt") == 0) {
-//			++m_num_uvs;
+//			info->num_uvs++;
 		}
 		else if (header.compare("vn") == 0) {
-			++m_num_normals;
+			info->num_normals++;
 		}
 		else if (header.compare("f ") == 0) {
-			++m_num_polys;
+			info->num_polys++;
+		}
+		else if (header.compare("g ") == 0) {
+			is_new_mesh = true;
 		}
 	}
 
@@ -194,16 +290,11 @@ bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 	return true;
 }
 
-static Node *new_obj_read_node()
-{
-	return new NodeMeshOBJRead;
-}
-
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("Mesh", NODE_NAME, new_obj_read_node);
+	REGISTER_NODE("Mesh", NODE_NAME, NodeMeshOBJRead);
 }
 
 }

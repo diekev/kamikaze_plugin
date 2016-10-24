@@ -166,7 +166,7 @@ void get_poly(PointList *mpoints,
 		mpoints->push_back(pj);
 		mpoints->push_back(pk);
 
-		mpolys->push_back(glm::ivec4(tri_offset + 0,
+		mpolys->push_back(glm::uvec4(tri_offset + 0,
 		                             tri_offset + 1,
 		                             tri_offset + 2,
 		                             std::numeric_limits<unsigned int>::max()));
@@ -194,25 +194,17 @@ void construct_alpha_mesh(PointList &points, const float radius,
 
 void NodeAlphaMesh::process()
 {
-	auto input_prim = getInputPrimitive("Points");
-
-	if (!input_prim) {
-		setOutputPrimitive("Mesh", nullptr);
-		return;
-	}
-
-	auto points = static_cast<PrimPoints *>(input_prim);
-
-	auto mesh = new Mesh;
-
 	const auto radius = eval_float("Point Radius");
 
-	construct_alpha_mesh(*(points->points()), radius, mesh);
+	for (auto &prim : primitive_iterator(m_collection, PrimPoints::id)) {
+		auto points = static_cast<PrimPoints *>(prim);
+		auto mesh = static_cast<Mesh *>(m_collection->build("Mesh"));
 
-	std::cerr << *mesh << '\n';
-	mesh->tagUpdate();
+		construct_alpha_mesh(*(points->points()), radius, mesh);
 
-	setOutputPrimitive("Mesh", mesh);
+		std::cerr << *mesh << '\n';
+		mesh->tagUpdate();
+	}
 }
 
 extern "C" {

@@ -64,7 +64,7 @@ void NodeOpenVDBRead::process()
 	const auto filename = eval_string("File Path");
 
 	if (filename.empty()) {
-		setOutputPrimitive("VDB", nullptr);
+		setOutputCollection("VDB", nullptr);
 		return;
 	}
 
@@ -73,7 +73,7 @@ void NodeOpenVDBRead::process()
 	openvdb::io::File file(filename);
 
 	if (!file.open()) {
-		setOutputPrimitive("VDB", nullptr);
+		setOutputCollection("VDB", nullptr);
 		std::cerr << "Unable to open file \'" << filename << "\'\n";
 		return;
 	}
@@ -86,7 +86,7 @@ void NodeOpenVDBRead::process()
 	const auto gridname = eval_string("Grid Name");
 
 	if (gridname.size() == 0 || !file.hasGrid(gridname)) {
-		setOutputPrimitive("VDB", nullptr);
+		setOutputCollection("VDB", nullptr);
 		std::cerr << "Cannot lookup \'" << gridname << "\' in file.\n";
 		return;
 	}
@@ -95,20 +95,14 @@ void NodeOpenVDBRead::process()
 
 	file.close();
 
-	auto prim = new VDBVolume(grid);
-	setOutputPrimitive("VDB", prim);
-}
-
-static Node *new_vdbread_node()
-{
-	return new NodeOpenVDBRead;
+	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_vdbread_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBRead);
 }
 
 }

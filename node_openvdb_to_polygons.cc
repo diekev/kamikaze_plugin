@@ -58,79 +58,66 @@ NodeToPolygons::NodeToPolygons()
 
 void NodeToPolygons::process()
 {
-	auto prim = getInputPrimitive("VDB");
-
-	if (!prim) {
-		setOutputPrimitive("Mesh", nullptr);
-		return;
-	}
-
-	auto vdb_prim = static_cast<VDBVolume *>(prim);
-
-	if (!is_level_set(vdb_prim)) {
-		setOutputPrimitive("Mesh", nullptr);
-		return;
-	}
-
 	const auto iso_value = eval_float("Iso Value");
 	const auto adaptivity = eval_float("Adaptivity");
 
-	auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
+	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
+		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-	openvdb::tools::VolumeToMesh mesher(iso_value, adaptivity);
-	mesher(*grid);
+		if (!is_level_set(vdb_prim)) {
+			continue;
+		}
 
-	Mesh *mesh = new Mesh;
+		auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
-	PointList *points = mesh->points();
-	points->reserve(mesher.pointListSize());
+		openvdb::tools::VolumeToMesh mesher(iso_value, adaptivity);
+		mesher(*grid);
 
-	for (size_t i = 0, ie = mesher.pointListSize(); i < ie; ++i) {
-		const auto &point = mesher.pointList()[i];
-		points->push_back({ point[0], point[1], point[2] });
+		auto mesh = static_cast<Mesh *>(m_collection->build("Mesh"));
+
+		PointList *points = mesh->points();
+		points->reserve(mesher.pointListSize());
+
+		for (size_t i = 0, ie = mesher.pointListSize(); i < ie; ++i) {
+			const auto &point = mesher.pointList()[i];
+			points->push_back({ point[0], point[1], point[2] });
+		}
+
+		auto &polygon_pool_list = mesher.polygonPoolList();
+
+		/* Preallocate primitive lists */
+		size_t num_polys = 0;
+		for (size_t n = 0, ie = mesher.polygonPoolListSize(); n < ie; ++n) {
+			auto &polygons = polygon_pool_list[n];
+			num_polys += polygons.numTriangles() + polygons.numQuads();
+		}
+
+		PolygonList *polys = mesh->polys();
+		polys->reserve(num_polys);
+
+	    for (size_t n = 0, N = mesher.polygonPoolListSize(); n < N; ++n) {
+	        auto &polygons = polygon_pool_list[n];
+
+	        for (size_t i = 0, I = polygons.numQuads(); i < I; ++i) {
+				const auto &quad = polygons.quad(i);
+	            polys->push_back({ quad[0], quad[1], quad[2], quad[3] });
+	        }
+
+	        for (size_t i = 0, I = polygons.numTriangles(); i < I; ++i) {
+				const auto &tri = polygons.triangle(i);
+	            polys->push_back({ tri[0], tri[1], tri[2], std::numeric_limits<unsigned int>::max() });
+	        }
+	    }
+
+		mesh->tagUpdate();
 	}
-
-	auto &polygon_pool_list = mesher.polygonPoolList();
-
-	/* Preallocate primitive lists */
-	size_t num_polys = 0;
-	for (size_t n = 0, ie = mesher.polygonPoolListSize(); n < ie; ++n) {
-		auto &polygons = polygon_pool_list[n];
-		num_polys += polygons.numTriangles() + polygons.numQuads();
-	}
-
-	PolygonList *polys = mesh->polys();
-	polys->reserve(num_polys);
-
-    for (size_t n = 0, N = mesher.polygonPoolListSize(); n < N; ++n) {
-        auto &polygons = polygon_pool_list[n];
-
-        for (size_t i = 0, I = polygons.numQuads(); i < I; ++i) {
-			const auto &quad = polygons.quad(i);
-            polys->push_back({ quad[0], quad[1], quad[2], quad[3] });
-        }
-
-        for (size_t i = 0, I = polygons.numTriangles(); i < I; ++i) {
-			const auto &tri = polygons.triangle(i);
-            polys->push_back({ tri[0], tri[1], tri[2], std::numeric_limits<unsigned int>::max() });
-        }
-    }
-
-	mesh->tagUpdate();
-
-	setOutputPrimitive("Mesh", mesh);
-}
-
-static Node *new_to_polygons_node()
-{
-	return new NodeToPolygons;
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_to_polygons_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeToPolygons);
 }
 
 }

@@ -163,20 +163,14 @@ void NodeCreate::process()
 	grid->setVectorType(static_cast<openvdb::VecType>(vectype));
 	grid->setGridClass(static_cast<openvdb::GridClass>(gridclass));
 
-	auto vdb_prim = new VDBVolume(grid);
-	setOutputPrimitive("VDB", vdb_prim);
-}
-
-static Node *new_create_node()
-{
-	return new NodeCreate;
+	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_create_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeCreate);
 }
 
 }

@@ -49,7 +49,6 @@ find_package(Kamikaze REQUIRED)
 find_package(OpenEXR REQUIRED)
 find_package(OpenVDB REQUIRED)
 find_package(TBB REQUIRED)
-find_package(Qt5 REQUIRED)
 
 include_directories(
 	.
@@ -58,7 +57,6 @@ include_directories(
 	${KAMIKAZE_INCLUDE_DIRS}
 	${OPENEXR_INCLUDE_DIRS}
 	${OPENVDB_INCLUDE_DIRS}
-	${QT5_INCLUDE_DIRS}
 )
 
 set(BLOSC_LIBRARY /opt/lib/blosc/lib/libblosc.so)

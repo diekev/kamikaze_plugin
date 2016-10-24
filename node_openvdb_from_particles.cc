@@ -130,13 +130,13 @@ static constexpr auto NODE_NAME = "OpenVDB From Particles";
 
 class NodeOpenVDBFromParticles : public Node {
 	bool m_distance_vdb = false;
-	QString m_distance_name = "";
+	std::string m_distance_name = "";
 
 	bool m_fog_vdb = false;
-	QString m_fog_name = "";
+	std::string m_fog_name = "";
 
 	bool m_mask_vdb = false;
-	QString m_mask_name = "";
+	std::string m_mask_name = "";
 
 public:
 	NodeOpenVDBFromParticles();
@@ -235,39 +235,27 @@ void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleLis
 
 void NodeOpenVDBFromParticles::process()
 {
-	auto prim = getInputPrimitive("Points");
-
-	if (!prim) {
-		setOutputPrimitive("VDB", nullptr);
-		return;
-	}
+	auto points = static_cast<PrimPoints *>(m_collection->primitives()[0]);
 
 	const auto m_voxel_size = eval_float("Voxel Size");
 	const auto m_half_width = eval_float("Half Width");
 	const auto m_part_scale = eval_float("Particle Scale");
 	const auto m_vel_scale = eval_float("Velocity Scale");
 
-	ParticleList list(static_cast<PrimPoints *>(prim), m_part_scale, m_vel_scale);
+	ParticleList list(points, m_part_scale, m_vel_scale);
 
 	auto grid = openvdb::createLevelSet<openvdb::FloatGrid>(m_voxel_size, m_half_width);
 
 	this->convert(grid, list);
 
-	auto output_prim = new VDBVolume(grid);
-
-	setOutputPrimitive("VDB", output_prim);
-}
-
-static Node *new_from_particles_node()
-{
-	return new NodeOpenVDBFromParticles;
+	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
 void new_kamikaze_node(NodeFactory *factory)
 {
-	factory->registerType("VDB", NODE_NAME, new_from_particles_node);
+	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBFromParticles);
 }
 
 }
