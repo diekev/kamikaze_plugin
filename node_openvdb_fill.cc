@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include "util_openvdb_process.h"
 #include "volumebase.h"
@@ -34,7 +34,7 @@ enum {
 	WORLD = 1,
 };
 
-class NodeFill : public Node {
+class NodeFill : public VDBNode {
 public:
 	NodeFill();
 
@@ -80,7 +80,7 @@ public:
 };
 
 NodeFill::NodeFill()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("VDB");

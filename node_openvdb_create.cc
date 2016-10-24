@@ -22,14 +22,14 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Create";
 
-class NodeCreate : public Node {
+class NodeCreate : public VDBNode {
 public:
 	NodeCreate();
 
@@ -37,7 +37,7 @@ public:
 };
 
 NodeCreate::NodeCreate()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addOutput("VDB");
 

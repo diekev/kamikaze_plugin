@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <openvdb/tools/GridTransformer.h>
 
@@ -37,7 +37,7 @@ enum {
 	QUADRATIC,
 };
 
-class NodeResample : public Node {
+class NodeResample : public VDBNode {
 public:
 	NodeResample();
 	~NodeResample() = default;
@@ -46,7 +46,7 @@ public:
 };
 
 NodeResample::NodeResample()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("VDB");

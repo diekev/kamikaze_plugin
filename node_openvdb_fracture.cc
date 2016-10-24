@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -38,7 +38,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Fracture";
 
-class NodeOpenVDBFracture : public Node {
+class NodeOpenVDBFracture : public VDBNode {
 public:
 	NodeOpenVDBFracture();
 	~NodeOpenVDBFracture() = default;
@@ -63,7 +63,7 @@ enum {
 };
 
 NodeOpenVDBFracture::NodeOpenVDBFracture()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("input");
 	addInput("cutters");

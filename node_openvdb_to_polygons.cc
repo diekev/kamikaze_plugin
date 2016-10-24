@@ -23,7 +23,7 @@
  */
 
 #include <kamikaze/mesh.h>
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/VolumeToMesh.h>
@@ -32,7 +32,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB To Polygons";
 
-class NodeToPolygons : public Node {
+class NodeToPolygons : public VDBNode {
 
 public:
 	NodeToPolygons();
@@ -42,7 +42,7 @@ public:
 };
 
 NodeToPolygons::NodeToPolygons()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("Mesh");

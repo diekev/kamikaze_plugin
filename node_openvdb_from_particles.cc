@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 #include <kamikaze/prim_points.h>
 
 #include <openvdb/tools/ParticlesToLevelSet.h>
@@ -128,7 +128,7 @@ public:
 
 static constexpr auto NODE_NAME = "OpenVDB From Particles";
 
-class NodeOpenVDBFromParticles : public Node {
+class NodeOpenVDBFromParticles : public VDBNode {
 	bool m_distance_vdb = false;
 	std::string m_distance_name = "";
 
@@ -147,7 +147,7 @@ public:
 };
 
 NodeOpenVDBFromParticles::NodeOpenVDBFromParticles()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("Points");
 	addOutput("VDB");

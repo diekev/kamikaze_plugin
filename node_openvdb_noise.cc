@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 #include <kamikaze/noise.h>
 
 #include <openvdb/math/Operators.h>
@@ -31,7 +31,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Noise";
 
-class NodeNoise : public Node {
+class NodeNoise : public VDBNode {
 public:
 	NodeNoise();
 
@@ -40,7 +40,7 @@ public:
 };
 
 NodeNoise::NodeNoise()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("VDB");

@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <openvdb/tools/LevelSetFilter.h>
 
@@ -30,7 +30,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Filter Level Set";
 
-class NodeFilterLevelSet : public Node {
+class NodeFilterLevelSet : public VDBNode {
 public:
 	NodeFilterLevelSet();
 	~NodeFilterLevelSet() = default;
@@ -56,7 +56,7 @@ enum {
 };
 
 NodeFilterLevelSet::NodeFilterLevelSet()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addInput("VDB Mask");

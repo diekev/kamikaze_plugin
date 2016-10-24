@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 #include <openvdb/tools/Prune.h>
 
 #include "util_openvdb_process.h"
@@ -36,7 +36,7 @@ enum {
 	LEVEL_SET = 2,
 };
 
-class NodePrune : public Node {
+class NodePrune : public VDBNode {
 
 public:
 	NodePrune();
@@ -74,7 +74,7 @@ public:
 };
 
 NodePrune::NodePrune()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("VDB");

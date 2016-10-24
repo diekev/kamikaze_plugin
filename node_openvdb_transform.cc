@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 #include <kamikaze/noise.h>
 
 #include <openvdb/tools/VectorTransformer.h>
@@ -32,7 +32,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Transform";
 
-class NodeOpenVDBTransform : public Node {
+class NodeOpenVDBTransform : public VDBNode {
 public:
 	NodeOpenVDBTransform();
 
@@ -40,7 +40,7 @@ public:
 };
 
 NodeOpenVDBTransform::NodeOpenVDBTransform()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("VDB");

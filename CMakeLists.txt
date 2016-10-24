@@ -74,6 +74,7 @@ set(VDB_PRIM_SRC
 	util_openvdb.cc
 	volumebase.cc
 
+	node_openvdb.h
 	util_openvdb.h
 	util_openvdb_process.h
 	volumebase.h
@@ -126,3 +127,8 @@ foreach(file_name ${MESH_NODE_SRC})
 	get_filename_component(file ${file_name} NAME_WE)
 	define_plugin(${file} ${file_name} "${EGO_LIBRARIES}")
 endforeach()
+
+install(
+	FILES openvdb_icon.svg
+	DESTINATION icons
+)

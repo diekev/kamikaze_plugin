@@ -23,7 +23,7 @@
  */
 
 #include <kamikaze/prim_points.h>
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <openvdb/tools/LevelSetUtil.h>
 #include <openvdb/tools/PointScatter.h>
@@ -35,7 +35,7 @@
 
 static constexpr auto NODE_NAME = "OpenVDB Scatter";
 
-class NodeOpenVDBScatter : public Node {
+class NodeOpenVDBScatter : public VDBNode {
 public:
 	NodeOpenVDBScatter();
 
@@ -43,7 +43,7 @@ public:
 };
 
 NodeOpenVDBScatter::NodeOpenVDBScatter()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("VDB");
 	addOutput("Points");

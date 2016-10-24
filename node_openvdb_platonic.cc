@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include <openvdb/tools/LevelSetSphere.h>
 #include <openvdb/tools/LevelSetPlatonic.h>
@@ -40,7 +40,7 @@ enum {
 	PLATONIC_ICOSA  = 5,
 };
 
-class NodePlatonic : public Node {
+class NodePlatonic : public VDBNode {
 public:
 	NodePlatonic();
 	~NodePlatonic() = default;
@@ -49,7 +49,7 @@ public:
 };
 
 NodePlatonic::NodePlatonic()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addOutput("VDB");
 

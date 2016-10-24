@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include "volumebase.h"
 
@@ -43,7 +43,7 @@ static constexpr auto NODE_NAME = "OpenVDB MetaData";
 #define set_float16_str "Set 16-Bit Floats"
 #define float16_str "Write 16-Bit Floats"
 
-class NodeOpenVDBMetaData : public Node {
+class NodeOpenVDBMetaData : public VDBNode {
 public:
 	NodeOpenVDBMetaData();
 
@@ -54,7 +54,7 @@ public:
 
 
 NodeOpenVDBMetaData::NodeOpenVDBMetaData()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addInput("input");
 	addOutput("output");

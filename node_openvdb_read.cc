@@ -22,7 +22,7 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include "node_openvdb.h"
 
 #include "util_openvdb_process.h"
 #include "volumebase.h"
@@ -39,7 +39,7 @@ static auto end(const openvdb::io::File &file)
 
 static constexpr auto NODE_NAME = "OpenVDB Read";
 
-class NodeOpenVDBRead : public Node {
+class NodeOpenVDBRead : public VDBNode {
 
 public:
 	NodeOpenVDBRead();
@@ -48,7 +48,7 @@ public:
 };
 
 NodeOpenVDBRead::NodeOpenVDBRead()
-    : Node(NODE_NAME)
+    : VDBNode(NODE_NAME)
 {
 	addOutput("VDB");
 
