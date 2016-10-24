@@ -95,6 +95,8 @@ set(KAMIKAZE_OPENVDB_LIBS
 
 set(NODE_SRC
 	node_openvdb_create.cc
+	node_openvdb_clip.cc
+	node_openvdb_combine.cc
 	node_openvdb_fill.cc
 	node_openvdb_filter_level_set.cc
 	node_openvdb_fracture.cc
