@@ -102,6 +102,7 @@ set(NODE_SRC
 	node_openvdb_fracture.cc
 	node_openvdb_from_particles.cc
 	node_openvdb_from_polygons.cc
+	node_openvdb_lod.cc
 	node_openvdb_metadata.cc
 	node_openvdb_noise.cc
 	node_openvdb_platonic.cc
