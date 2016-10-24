@@ -69,42 +69,47 @@ void NodeFromPolygons::process()
 	const auto int_band = eval_int("Interior Band");
 	const auto ext_band = eval_int("Exterior Band");
 
-	Mesh *mesh = static_cast<Mesh *>(m_collection->primitives()[0]);
+	std::vector<Primitive *> converted_prims;
 
-	const PointList *mpoints = mesh->points();
-	const PolygonList *polys = mesh->polys();
+	auto transform = openvdb::math::Transform::createLinearTransform(voxel_size);
 
 	std::vector<openvdb::Vec3s> points;
     std::vector<openvdb::Vec4I> faces;
 
-	auto transform = openvdb::math::Transform::createLinearTransform(voxel_size);
+	for (auto prim : primitive_iterator(m_collection, Mesh::id)) {
+		converted_prims.push_back(prim);
 
-    {
-        points.reserve(mpoints->size());
-        faces.reserve(polys->size());
+		auto mesh = static_cast<Mesh *>(prim);
+		const auto mpoints = mesh->points();
+		const auto polys = mesh->polys();
+
+		points.clear();
+		points.reserve(mpoints->size());
+		faces.clear();
+		faces.reserve(polys->size());
 
 		openvdb::Vec3s point;
-		for (size_t n = 0, N = mpoints->size(); n < N; ++n) {
+		for (auto n = 0ul, N = mpoints->size(); n < N; ++n) {
 			const auto &vert = (*mpoints)[n];
 			point = transform->worldToIndex({ vert[0], vert[1], vert[2] });
 			points.push_back(point);
 		}
 
-		for (size_t n = 0, N = polys->size(); n < N; ++n) {
+		for (auto n = 0ul, N = polys->size(); n < N; ++n) {
 			const auto &quad = (*polys)[n];
 			faces.emplace_back(quad[0], quad[1], quad[2], quad[3]);
 		}
-    }
 
-	openvdb::tools::QuadAndTriangleDataAdapter<openvdb::Vec3s, openvdb::Vec4I> adapt(points, faces);
+		openvdb::tools::QuadAndTriangleDataAdapter<openvdb::Vec3s, openvdb::Vec4I> adapt(points, faces);
 
-	auto grid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(
-	                adapt, *transform, int_band, ext_band, 0, nullptr);
+		auto grid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(
+		                adapt, *transform, int_band, ext_band, 0, nullptr);
 
-	/* TODO. */
-	m_collection->free_all();
+		build_vdb_prim(m_collection, grid);
+	}
 
-	build_vdb_prim(m_collection, grid);
+	/* Remove the converted meshes from the collection. */
+	m_collection->destroy(converted_prims);
 }
 
 extern "C" {
