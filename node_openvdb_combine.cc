@@ -49,7 +49,7 @@ public:
 	void process() override;
 
 	openvdb::GridBase::Ptr combineGrids(const int op,
-	                                    openvdb::GridBase::Ptr aGrid,
+	                                    openvdb::GridBase::ConstPtr aGrid,
 	                                    openvdb::GridBase::Ptr bGrid,
 	                                    const std::string &aGridName,
 	                                    const std::string &bGridName,
@@ -309,7 +309,7 @@ struct CombineOp {
 	int op;
 	int resample;
 	std::string aGridName, bGridName;
-	openvdb::GridBase::Ptr aBaseGrid, bBaseGrid;
+	openvdb::GridBase::ConstPtr aBaseGrid, bBaseGrid;
 	openvdb::GridBase::Ptr outGrid;
 	openvdb::util::NullInterrupter interupter;
 
@@ -377,7 +377,7 @@ struct CombineOp {
 			/* For non-level set grids or if level set rebuild failed due to an unsupported */
 			/* grid type, use the grid transformer tool to resample the source grid to match */
 			/* the reference grid. */
-			dest = src.copy(openvdb::CP_NEW);
+			dest = src.copy();
 			dest->setTransform(refXform.copy());
 
 			using namespace openvdb;
@@ -627,7 +627,7 @@ struct CombineOp {
 				const Blend1<ValueT> comp(aMult, bMult);
 				ValueT bg;
 				comp(aGrid->background(), ZERO, bg);
-				resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
+				resultGrid = aGrid->copy();
 
 				openvdb::tools::changeBackground(resultGrid->tree(), bg);
 				resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
@@ -638,7 +638,7 @@ struct CombineOp {
 				const Blend2<ValueT> comp(aMult, bMult);
 				ValueT bg;
 				comp(aGrid->background(), ZERO, bg);
-				resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
+				resultGrid = aGrid->copy();
 				openvdb::tools::changeBackground(resultGrid->tree(), bg);
 				resultGrid->tree().combine2(aGrid->tree(), bGrid->tree(), comp, /*prune=*/false);
 				break;
@@ -1072,7 +1072,12 @@ void NodeOpenVDBCombine::process()
 	}
 }
 
-openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op, openvdb::GridBase::Ptr aGrid, openvdb::GridBase::Ptr bGrid, const std::string &aGridName, const std::string &bGridName, const int resample)
+openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,
+                                                        openvdb::GridBase::ConstPtr aGrid,
+                                                        openvdb::GridBase::Ptr bGrid,
+                                                        const std::string &aGridName,
+                                                        const std::string &bGridName,
+                                                        const int resample)
 {
 	openvdb::GridBase::Ptr outGrid;
 
@@ -1123,9 +1128,13 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op, openvdb::G
 	compOp.aGridName = aGridName;
 	compOp.bGridName = bGridName;
 
-	auto success = process_typed_grid(aGrid,
-	                                  get_grid_storage(needA ? *aGrid : *bGrid),
-	                                  compOp);
+#if 0
+	auto success = process_grid_real(aGrid,
+	                                 get_grid_storage(needA ? *aGrid : *bGrid),
+	                                 compOp);
+#else
+	auto success = false;
+#endif
 
 	if (!success || !compOp.outGrid) {
 		std::stringstream ss;

@@ -23,14 +23,14 @@
 
 #include "util_openvdb.h"
 
-openvdb::FloatGrid::Ptr transform_grid(const openvdb::FloatGrid &grid,
+openvdb::FloatGrid::Ptr transform_grid(openvdb::FloatGrid &grid,
                                        const openvdb::Vec3s &rot,
                                        const openvdb::Vec3s &scale,
                                        const openvdb::Vec3s &translate,
                                        const openvdb::Vec3s &pivot)
 {
 	/* make sure the new grid has the same transform and metadatas as the old. */
-	openvdb::FloatGrid::Ptr xformed = grid.copy(openvdb::CopyPolicy::CP_NEW);
+	openvdb::FloatGrid::Ptr xformed = grid.copy();
 
 	openvdb::Mat4R mat(openvdb::Mat4R::identity());
 	mat.preTranslate(pivot);

@@ -173,7 +173,7 @@ void NodeResample::process()
 		auto vdb_prim = static_cast<VDBVolume *>(prim);
 		auto grid = vdb_prim->getGridPtr();
 
-		auto outgrid = grid->copyGrid(CP_NEW);
+		auto outgrid = grid->copyGrid();
 
 		if (is_level_set(vdb_prim)) {
 			LevelSetRebuildOp op(voxel_size);
