@@ -30,20 +30,7 @@
 #include <openvdb/tools/MultiResGrid.h>
 #include <openvdb/util/NullInterrupter.h>
 
-/* ************************************************************************** */
-
-std::string join(const std::vector<std::string> &strings, const std::string &separator = "")
-{
-	std::string ret = "";
-
-	for (auto i = 0ul; i < strings.size() - 1; ++i) {
-		ret += strings[i] + separator;
-	}
-
-	ret += strings.back();
-
-	return ret;
-}
+#include "util_string.h"
 
 /* ************************************************************************** */
 

@@ -72,11 +72,13 @@ set(OPENVDB_LIBRARIES
 
 set(VDB_PRIM_SRC
 	util_openvdb.cc
+	util_string.cc
 	volumebase.cc
 
 	node_openvdb.h
 	util_openvdb.h
 	util_openvdb_process.h
+	util_string.h
 	volumebase.h
 )
 

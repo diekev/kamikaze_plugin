@@ -35,6 +35,7 @@
 
 #include <random>
 
+#include "util_string.h"
 #include "volumebase.h"
 
 static constexpr auto NODE_NAME = "OpenVDB Fracture";
@@ -168,9 +169,7 @@ void NodeOpenVDBFracture::do_process()
 		std::stringstream ss;
 
 		ss << "The following non level set grids were skipped: '";
-		for (const auto &str : non_level_sets) {
-			ss << str << ", ";
-		}
+		ss << join(non_level_sets, ", ");
 		ss << "'.\n";
 
 		this->add_warning(ss.str());
@@ -180,9 +179,7 @@ void NodeOpenVDBFracture::do_process()
 		std::stringstream ss;
 
 		ss << "The following grids were skipped: '";
-		for (const auto &str : non_linear) {
-			ss << str << ", ";
-		}
+		ss << join(non_linear, ", ");
 		ss << "' because they don't have a linear/affine transform.\n";
 
 		this->add_warning(ss.str());
@@ -246,9 +243,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		std::stringstream ss;
 
 		ss << "The following grids were skipped: '";
-		for (const auto &str : bad_transform_list) {
-			ss << str << ", ";
-		}
+		ss << join(bad_transform_list, ", ");
 		ss << "' because they don't match the transform of the first grid.\n";
 
 		this->add_warning(ss.str());
@@ -258,9 +253,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		std::stringstream ss;
 
 		ss << "The following grids were skipped: '";
-		for (const auto &str : bad_background_list) {
-			ss << str << ", ";
-		}
+		ss << join(bad_background_list, ", ");
 		ss << "' because they don't match the background value of the first grid.\n";
 
 		this->add_warning(ss.str());
@@ -270,9 +263,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		std::stringstream ss;
 
 		ss << "The following grids were skipped: '";
-		for (const auto &str : bad_type_list) {
-			ss << str << ", ";
-		}
+		ss << join(bad_type_list, ", ");
 		ss << "' because they don't have the same data type as the first grid.\n";
 
 		this->add_warning(ss.str());
