@@ -648,7 +648,7 @@ bool is_vector_grid(VDBVolume *vol)
 	return is_elem(vol->storage(), GRID_STORAGE_VEC3D, GRID_STORAGE_VEC3S, GRID_STORAGE_VEC3I);
 }
 
-void build_vdb_prim(PrimitiveCollection *collection, openvdb::v3_2_0::GridBase::Ptr grid)
+void build_vdb_prim(PrimitiveCollection *collection, openvdb::GridBase::Ptr grid)
 {
 	auto prim = collection->build("OpenVDB Volume");
 	auto vdb_prim = static_cast<VDBVolume *>(prim);
