@@ -47,8 +47,6 @@ public:
 
 	void process() override;
 
-	void do_process();
-
 	template <typename GridType>
 	void do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 	                 PrimitiveCollection *cutters,
@@ -119,16 +117,6 @@ NodeOpenVDBFracture::NodeOpenVDBFracture()
 }
 
 void NodeOpenVDBFracture::process()
-{
-	try {
-		do_process();
-    }
-	catch (const std::exception &e) {
-		this->add_warning(e.what());
-	}
-}
-
-void NodeOpenVDBFracture::do_process()
 {
     /* Validate input. */
 	const auto cutter_collection = getInputCollection("cutters");

@@ -185,103 +185,98 @@ public:
 
 	void process() override
 	{
-		try {
-	        std::vector<std::string> skipped;
-			std::vector<Primitive *> to_destroy;
-			openvdb::util::NullInterrupter boss;
+		std::vector<std::string> skipped;
+		std::vector<Primitive *> to_destroy;
+		openvdb::util::NullInterrupter boss;
 
-	        const auto lod_mode = eval_int("LOD Mode");
+		const auto lod_mode = eval_int("LOD Mode");
 
-	        if (lod_mode == LOD_SINGLE) {
-	            const auto reuse_name = eval_bool("Preserve Grid Names") > 0;
-	            MultiResGridFractionalOp<1> op(eval_float("Level"));
+		if (lod_mode == LOD_SINGLE) {
+			const auto reuse_name = eval_bool("Preserve Grid Names") > 0;
+			MultiResGridFractionalOp<1> op(eval_float("Level"));
 
-				for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-					auto vdb = static_cast<VDBVolume *>(prim);
+			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+				auto vdb = static_cast<VDBVolume *>(prim);
 
-	                if (!vdb->getGrid().transform().isLinear()) {
-	                    skipped.push_back(vdb->getGrid().getName());
-	                    continue;
-	                }
+				if (!vdb->getGrid().transform().isLinear()) {
+					skipped.push_back(vdb->getGrid().getName());
+					continue;
+				}
 
-					/* TODO: process_typed_grid should not process bool types */
-					process_grid_real(vdb->getGrid(), vdb->storage(), op);
+				/* TODO: process_typed_grid should not process bool types */
+				process_grid_real(vdb->getGrid(), vdb->storage(), op);
 
-					if (reuse_name) {
-						op.outputGrid->setName(vdb->getGrid().getName());
-					}
+				if (reuse_name) {
+					op.outputGrid->setName(vdb->getGrid().getName());
+				}
 
-	                build_vdb_prim(m_collection, op.outputGrid);
+				build_vdb_prim(m_collection, op.outputGrid);
 
-					to_destroy.push_back(prim);
-	            }
-	        }
-			else if (lod_mode == LOD_RANGE) {
-				const auto range = eval_vec3("Range");
-	            const auto start = range[0];
-	            const auto end = range[1];
-	            const auto step = range[2];
+				to_destroy.push_back(prim);
+			}
+		}
+		else if (lod_mode == LOD_RANGE) {
+			const auto range = eval_vec3("Range");
+			const auto start = range[0];
+			const auto end = range[1];
+			const auto step = range[2];
 
-	            if (!is_valid_range(start, end, step)) {
-	                this->add_warning("Invalid range, make sure that start <= end"
-					                  " and the step size is a positive number.");
-	                return;
-	            }
+			if (!is_valid_range(start, end, step)) {
+				this->add_warning("Invalid range, make sure that start <= end"
+				                  " and the step size is a positive number.");
+				return;
+			}
 
-	            MultiResGridRangeOp<1> op(start, end, step, boss);
+			MultiResGridRangeOp<1> op(start, end, step, boss);
 
-				for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-					auto vdb = static_cast<VDBVolume *>(prim);
+			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+				auto vdb = static_cast<VDBVolume *>(prim);
 
-	                if (!vdb->getGrid().transform().isLinear()) {
-	                    skipped.push_back(vdb->getGrid().getName());
-	                    continue;
-	                }
+				if (!vdb->getGrid().transform().isLinear()) {
+					skipped.push_back(vdb->getGrid().getName());
+					continue;
+				}
 
-					/* TODO: process_typed_grid should not process bool types */
-					process_grid_real(vdb->getGrid(), vdb->storage(), op);
+				/* TODO: process_typed_grid should not process bool types */
+				process_grid_real(vdb->getGrid(), vdb->storage(), op);
 
-	                for (size_t i = 0; i < op.outputGrids.size(); ++i) {
-	                    build_vdb_prim(m_collection, op.outputGrids[i]);
-	                }
+				for (size_t i = 0; i < op.outputGrids.size(); ++i) {
+					build_vdb_prim(m_collection, op.outputGrids[i]);
+				}
 
-					to_destroy.push_back(prim);
-	            }
-	        }
-			else if (lod_mode == LOD_PYRAMID) {
-	            MultiResGridIntegerOp op(eval_int("Count"));
+				to_destroy.push_back(prim);
+			}
+		}
+		else if (lod_mode == LOD_PYRAMID) {
+			MultiResGridIntegerOp op(eval_int("Count"));
 
-	            for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-					auto vdb = static_cast<VDBVolume *>(prim);
+			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+				auto vdb = static_cast<VDBVolume *>(prim);
 
-	                if (!vdb->getGrid().transform().isLinear()) {
-	                    skipped.push_back(vdb->getGrid().getName());
-	                    continue;
-	                }
+				if (!vdb->getGrid().transform().isLinear()) {
+					skipped.push_back(vdb->getGrid().getName());
+					continue;
+				}
 
-					/* TODO: process_typed_grid should not process bool types */
-	                process_grid_real(vdb->getGrid(), vdb->storage(), op);
+				/* TODO: process_typed_grid should not process bool types */
+				process_grid_real(vdb->getGrid(), vdb->storage(), op);
 
-	                for (size_t i = 0; i < op.outputGrids->size(); ++i) {
-	                    build_vdb_prim(m_collection, op.outputGrids->at(i));
-	                }
+				for (size_t i = 0; i < op.outputGrids->size(); ++i) {
+					build_vdb_prim(m_collection, op.outputGrids->at(i));
+				}
 
-					to_destroy.push_back(prim);
-	            }
-	        }
-			else {
-	            this->add_warning("Invalid LOD option.");
-	        }
+				to_destroy.push_back(prim);
+			}
+		}
+		else {
+			this->add_warning("Invalid LOD option.");
+		}
 
-			m_collection->destroy(to_destroy);
+		m_collection->destroy(to_destroy);
 
-	        if (!skipped.empty()) {
-	            this->add_warning("Unable to process grid(s): " + join(skipped, ", "));
-	        }
-	    }
-		catch (const std::exception &e) {
-	        this->add_warning(e.what());
-	    }
+		if (!skipped.empty()) {
+			this->add_warning("Unable to process grid(s): " + join(skipped, ", "));
+		}
 	}
 };
 

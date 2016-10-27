@@ -939,137 +939,132 @@ bool NodeOpenVDBCombine::update_properties()
 
 void NodeOpenVDBCombine::process()
 {
-	try {
-		const auto pairs = eval_bool("Combine A/B Pairs");
-		const auto flatten = eval_bool("Flatten All B into A");
-		const auto op = eval_int("Operation");
-		const auto needA = need_grid_a(op);
-		const auto needB = need_grid_b(op);
-		const auto resample = eval_int("Resample");
+	const auto pairs = eval_bool("Combine A/B Pairs");
+	const auto flatten = eval_bool("Flatten All B into A");
+	const auto op = eval_int("Operation");
+	const auto needA = need_grid_a(op);
+	const auto needB = need_grid_b(op);
+	const auto resample = eval_int("Resample");
 
-		std::vector<Primitive *> prims_to_delete;
-		PrimitiveCollection created_prims(m_collection->factory());
+	std::vector<Primitive *> prims_to_delete;
+	PrimitiveCollection created_prims(m_collection->factory());
 
-		const auto a_collection = m_collection;
-		const auto b_collection = getInputCollection("input b (optional)");
+	const auto a_collection = m_collection;
+	const auto b_collection = getInputCollection("input b (optional)");
 
-		/* Iterate over A and, optionally, B grids. */
-		primitive_iterator aIt(a_collection);
-		primitive_iterator bIt(b_collection);
+	/* Iterate over A and, optionally, B grids. */
+	primitive_iterator aIt(a_collection);
+	primitive_iterator bIt(b_collection);
 
-		for ( ; (!needA || (aIt.get() != nullptr)) && (!needB || (bIt.get() != nullptr));
-		      ++aIt, ((needB && pairs) ? ++bIt : bIt))
-		{
-			/* Note: even if needA is false, we still need to delete A grids. */
-			auto aVdb = static_cast<VDBVolume *>(aIt.get());
-			auto bVdb = static_cast<VDBVolume *>(bIt.get());
+	for ( ; (!needA || (aIt.get() != nullptr)) && (!needB || (bIt.get() != nullptr));
+	      ++aIt, ((needB && pairs) ? ++bIt : bIt))
+	{
+		/* Note: even if needA is false, we still need to delete A grids. */
+		auto aVdb = static_cast<VDBVolume *>(aIt.get());
+		auto bVdb = static_cast<VDBVolume *>(bIt.get());
 
-			openvdb::GridBase::Ptr aGrid;
-			openvdb::GridBase::Ptr bGrid;
+		openvdb::GridBase::Ptr aGrid;
+		openvdb::GridBase::Ptr bGrid;
 
-			if (aVdb) {
-				aGrid = aVdb->getGridPtr();
-			}
+		if (aVdb) {
+			aGrid = aVdb->getGridPtr();
+		}
 
-			if (bVdb) {
-				bGrid = bVdb->getGridPtr();
-			}
+		if (bVdb) {
+			bGrid = bVdb->getGridPtr();
+		}
 
-			/* For error reporting, get the names of the A and B grids. */
-			auto aGridName = (aVdb != nullptr) ? aVdb->name() : "A";
-			auto bGridName = (bVdb != nullptr) ? bVdb->name() : "B";
+		/* For error reporting, get the names of the A and B grids. */
+		auto aGridName = (aVdb != nullptr) ? aVdb->name() : "A";
+		auto bGridName = (bVdb != nullptr) ? bVdb->name() : "B";
 
-			/* Name the output grid after the A grid, except (see below) if
+		/* Name the output grid after the A grid, except (see below) if
 				 * the A grid is unused. */
-			auto outGridName = aGridName;
+		auto outGridName = aGridName;
 
-			openvdb::GridBase::Ptr outGrid;
+		openvdb::GridBase::Ptr outGrid;
 
-			while (true) {
-				/* If the A grid is unused, name the output grid after the
-					 * most recent B grid. */
-				if (!needA) {
-					outGridName = bGridName;
-				}
-
-				outGrid = combineGrids(op, aGrid, bGrid, aGridName, bGridName, resample);
-
-				/* When not flattening, quit after one pass. */
-				if (!flatten) {
-					break;
-				}
-
-				/* See if we have any more B grids. */
-				++bIt;
-				if (!bIt.get()) {
-					break;
-				}
-
-				bVdb = static_cast<VDBVolume *>(*bIt);
-				bGrid = bVdb->getGridPtr();
-				bGridName = (bVdb != nullptr) ? bVdb->name() : "B";
-
-				aGrid = outGrid;
-				if (!aGrid) {
-					break;
-				}
+		while (true) {
+			/* If the A grid is unused, name the output grid after the
+			 * most recent B grid. */
+			if (!needA) {
+				outGridName = bGridName;
 			}
 
-			if (outGrid) {
-				/* Add a new VDB primitive for the output grid to the output gdp. */
-				build_vdb_prim(&created_prims, outGrid);
+			outGrid = combineGrids(op, aGrid, bGrid, aGridName, bGridName, resample);
 
-				/* Remove the A grid from the output gdp. */
-				if (aVdb) {
-					prims_to_delete.push_back(aVdb);
-				}
-			}
-
-			if (!needA && !pairs) {
+			/* When not flattening, quit after one pass. */
+			if (!flatten) {
 				break;
 			}
 
-			if (flatten) {
-				break;
-			}
-		}
-
-		/* In non-paired mode, there should be only one B grid. */
-		if (!pairs && !flatten) {
+			/* See if we have any more B grids. */
 			++bIt;
+			if (!bIt.get()) {
+				break;
+			}
+
+			bVdb = static_cast<VDBVolume *>(*bIt);
+			bGrid = bVdb->getGridPtr();
+			bGridName = (bVdb != nullptr) ? bVdb->name() : "B";
+
+			aGrid = outGrid;
+			if (!aGrid) {
+				break;
+			}
 		}
 
-		/* In flatten mode there should be a single A grid. */
+		if (outGrid) {
+			/* Add a new VDB primitive for the output grid to the output gdp. */
+			build_vdb_prim(&created_prims, outGrid);
+
+			/* Remove the A grid from the output gdp. */
+			if (aVdb) {
+				prims_to_delete.push_back(aVdb);
+			}
+		}
+
+		if (!needA && !pairs) {
+			break;
+		}
+
 		if (flatten) {
-			++aIt;
+			break;
 		}
-
-		const auto unusedA = (needA && (aIt.get() != nullptr));
-		const auto unusedB = (needB && (bIt.get() != nullptr));
-
-		if (unusedA || unusedB) {
-			std::stringstream ss;
-			ss << "some grids were not processed because there were more "
-			   << (unusedA ? "A" : "B") << " grids than "
-			   << (unusedA ? "B" : "A") << " grids\n";
-			this->add_warning(ss.str());
-		}
-
-		/* TODO: find a better way to handle these actions. */
-
-		/* Copy created prims to output. */
-		for (auto prim : primitive_iterator(&created_prims)) {
-			m_collection->add(prim);
-		}
-
-		created_prims.clear();
-
-		/* Remove processed prims. */
-		m_collection->destroy(prims_to_delete);
 	}
-	catch (const std::exception &e) {
-		this->add_warning(e.what());
+
+	/* In non-paired mode, there should be only one B grid. */
+	if (!pairs && !flatten) {
+		++bIt;
 	}
+
+	/* In flatten mode there should be a single A grid. */
+	if (flatten) {
+		++aIt;
+	}
+
+	const auto unusedA = (needA && (aIt.get() != nullptr));
+	const auto unusedB = (needB && (bIt.get() != nullptr));
+
+	if (unusedA || unusedB) {
+		std::stringstream ss;
+		ss << "some grids were not processed because there were more "
+		   << (unusedA ? "A" : "B") << " grids than "
+		   << (unusedA ? "B" : "A") << " grids\n";
+		this->add_warning(ss.str());
+	}
+
+	/* TODO: find a better way to handle these actions. */
+
+	/* Copy created prims to output. */
+	for (auto prim : primitive_iterator(&created_prims)) {
+		m_collection->add(prim);
+	}
+
+	created_prims.clear();
+
+	/* Remove processed prims. */
+	m_collection->destroy(prims_to_delete);
 }
 
 openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,

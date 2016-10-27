@@ -124,55 +124,50 @@ public:
 
 	void process() override
 	{
-		try {
-			auto num_grids = 0;
+		auto num_grids = 0;
 
-			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-				if (prim) {
-					++num_grids;
-				}
+		for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+			if (prim) {
+				++num_grids;
 			}
-
-	        if (num_grids == 0) {
-	            this->add_warning("No VDB grids to process.");
-	            return;
-	        }
-
-	        auto append_number = eval_bool("Append Segment Number to Grid Name");
-			openvdb::util::NullInterrupter boss;
-
-			PrimitiveCollection collection(m_collection->factory());
-
-	        SegmentActiveVoxels segmentActiveVoxels(collection, append_number, boss);
-	        SegmentSDF segmentSDF(collection, append_number, boss);
-			std::vector<Primitive *> to_destroy;
-
-			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-				auto vdb = static_cast<VDBVolume *>(prim);
-
-	            const auto grid_class = vdb->getGrid().getGridClass();
-
-	            if (grid_class == openvdb::GRID_LEVEL_SET) {
-	                process_grid_real(vdb->getGrid(), vdb->storage(), segmentSDF);
-	            }
-				else {
-	                process_typed_grid(vdb->getGrid(), vdb->storage(), segmentActiveVoxels);
-	            }
-
-				to_destroy.push_back(prim);
-	        }
-
-			m_collection->destroy(to_destroy);
-
-			for (auto prim : primitive_iterator(&collection)) {
-				m_collection->add(prim);
-			}
-
-			collection.clear();
-	    }
-		catch (const std::exception &e) {
-			this->add_warning(e.what());
 		}
+
+		if (num_grids == 0) {
+			this->add_warning("No VDB grids to process.");
+			return;
+		}
+
+		auto append_number = eval_bool("Append Segment Number to Grid Name");
+		openvdb::util::NullInterrupter boss;
+
+		PrimitiveCollection collection(m_collection->factory());
+
+		SegmentActiveVoxels segmentActiveVoxels(collection, append_number, boss);
+		SegmentSDF segmentSDF(collection, append_number, boss);
+		std::vector<Primitive *> to_destroy;
+
+		for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+			auto vdb = static_cast<VDBVolume *>(prim);
+
+			const auto grid_class = vdb->getGrid().getGridClass();
+
+			if (grid_class == openvdb::GRID_LEVEL_SET) {
+				process_grid_real(vdb->getGrid(), vdb->storage(), segmentSDF);
+			}
+			else {
+				process_typed_grid(vdb->getGrid(), vdb->storage(), segmentActiveVoxels);
+			}
+
+			to_destroy.push_back(prim);
+		}
+
+		m_collection->destroy(to_destroy);
+
+		for (auto prim : primitive_iterator(&collection)) {
+			m_collection->add(prim);
+		}
+
+		collection.clear();
 	}
 };
 

@@ -44,8 +44,6 @@ public:
 	bool update_properties() override;
 
 	void process() override;
-
-	void process_impl();
 };
 
 NodeOpenVDBScatter::NodeOpenVDBScatter()
@@ -168,16 +166,6 @@ bool process_sdf_interior(const openvdb::GridBase &ref_grid, int storage, OpType
 }
 
 void NodeOpenVDBScatter::process()
-{
-	try {
-		process_impl();
-	}
-	catch (const std::exception &e) {
-		this->add_warning(e.what());
-	}
-}
-
-void NodeOpenVDBScatter::process_impl()
 {
 	const auto seed = eval_int("Random Seed");
 	const auto mode = eval_enum("Mode");

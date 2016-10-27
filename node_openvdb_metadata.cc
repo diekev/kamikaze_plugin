@@ -133,53 +133,48 @@ bool NodeOpenVDBMetaData::update_properties()
 
 void NodeOpenVDBMetaData::process()
 {
-	try {
-		/* Get UI parameter values. */
-		const auto set_class = eval_bool(set_class_str);
-		const auto gridclass = static_cast<openvdb::GridClass>(eval_enum(class_str));
+	/* Get UI parameter values. */
+	const auto set_class = eval_bool(set_class_str);
+	const auto gridclass = static_cast<openvdb::GridClass>(eval_enum(class_str));
 
-		const auto set_creator = eval_bool(set_creator_str);
-		const auto creator = eval_string(creator_str);
+	const auto set_creator = eval_bool(set_creator_str);
+	const auto creator = eval_string(creator_str);
 
-		const auto set_float16 = eval_bool(set_float16_str);
-		const auto float16 = eval_bool(float16_str);
+	const auto set_float16 = eval_bool(set_float16_str);
+	const auto float16 = eval_bool(float16_str);
 
-		const auto set_vectype = eval_bool(set_vectype_str);
-		const auto vectype = static_cast<openvdb::VecType>(eval_enum(vectype_str));
+	const auto set_vectype = eval_bool(set_vectype_str);
+	const auto vectype = static_cast<openvdb::VecType>(eval_enum(vectype_str));
 
-		const auto set_world = eval_bool(set_world_str);
-		const auto world = eval_bool(world_str);
+	const auto set_world = eval_bool(set_world_str);
+	const auto world = eval_bool(world_str);
 
-		/* Set metadatas to the volume grids in the collection. */
-		for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-			auto vdb = static_cast<VDBVolume *>(prim);
-			auto &grid = vdb->getGrid();
+	/* Set metadatas to the volume grids in the collection. */
+	for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+		auto vdb = static_cast<VDBVolume *>(prim);
+		auto &grid = vdb->getGrid();
 
-			if (set_class) {
-				grid.setGridClass(gridclass);
+		if (set_class) {
+			grid.setGridClass(gridclass);
 
-				/* TODO: update viewport visualisation settings. */
-			}
-
-			if (set_creator) {
-				grid.setCreator(creator);
-			}
-
-			if (set_float16) {
-				grid.setSaveFloatAsHalf(float16);
-			}
-
-			if (set_vectype) {
-				grid.setVectorType(vectype);
-			}
-
-			if (set_world) {
-				grid.setIsInWorldSpace(world);
-			}
+			/* TODO: update viewport visualisation settings. */
 		}
-	}
-	catch (const std::exception &e) {
-		this->add_warning(e.what());
+
+		if (set_creator) {
+			grid.setCreator(creator);
+		}
+
+		if (set_float16) {
+			grid.setSaveFloatAsHalf(float16);
+		}
+
+		if (set_vectype) {
+			grid.setVectorType(vectype);
+		}
+
+		if (set_world) {
+			grid.setIsInWorldSpace(world);
+		}
 	}
 }
 

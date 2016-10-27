@@ -125,7 +125,6 @@ public:
 	bool update_properties() override;
 
 	void process() override;
-	void process_impl();
 
 	template<typename GridType>
 	void apply_noise(openvdb::GridBase &grid,
@@ -215,16 +214,6 @@ bool NodeNoise::update_properties()
 }
 
 void NodeNoise::process()
-{
-	try {
-		process_impl();
-	}
-	catch (const std::exception &e) {
-		this->add_warning(e.what());
-	}
-}
-
-void NodeNoise::process_impl()
 {
 	/* ------- Evaluate the FractalBoltzman noise parameters from UI. ------- */
 

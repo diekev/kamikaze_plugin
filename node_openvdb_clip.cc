@@ -132,106 +132,101 @@ public:
 
 	void process() override
 	{
-		try {
-	        const auto mask_collection = getInputCollection("mask");
+		const auto mask_collection = getInputCollection("mask");
 
-	        const bool use_mask = eval_bool("Use Mask");
-	        const bool inside = eval_bool("Keep Inside");
+		const bool use_mask = eval_bool("Use Mask");
+		const bool inside = eval_bool("Keep Inside");
 
-	        openvdb::BBoxd bbox;
-	        openvdb::GridBase::Ptr mask_grid;
+		openvdb::BBoxd bbox;
+		openvdb::GridBase::Ptr mask_grid;
 
-	        if (mask_collection) {
-				VDBVolume *vdb = nullptr;
+		if (mask_collection) {
+			VDBVolume *vdb = nullptr;
 
-				for (auto prim : primitive_iterator(mask_collection, VDBVolume::id)) {
-					auto volume = static_cast<VDBVolume *>(prim);
+			for (auto prim : primitive_iterator(mask_collection, VDBVolume::id)) {
+				auto volume = static_cast<VDBVolume *>(prim);
 
-					/* Only consider first valid grid. */
-					if (volume) {
-	                    vdb = volume;
-						break;
-	                }
+				/* Only consider first valid grid. */
+				if (volume) {
+					vdb = volume;
+					break;
 				}
+			}
 
-				if (use_mask) {
-					if (vdb) {
-						if (is_level_set(vdb)) {
-							// If the mask grid is a level set, extract an interior mask from it.
-							LevelSetMaskOp op;
-							process_grid_real(vdb->getGrid(), vdb->storage(), op);
-							mask_grid = op.outputGrid;
-						}
-						else {
-							mask_grid = vdb->getGridPtr();
-						}
-					}
-
-					if (!mask_grid) {
-						this->add_warning("Mask VDB not found!");
-						return;
-					}
-				}
-				else {
-					glm::vec3 min, max;
-
-					if (vdb != nullptr) {
-						vdb->computeBBox(min, max);
+			if (use_mask) {
+				if (vdb) {
+					if (is_level_set(vdb)) {
+						// If the mask grid is a level set, extract an interior mask from it.
+						LevelSetMaskOp op;
+						process_grid_real(vdb->getGrid(), vdb->storage(), op);
+						mask_grid = op.outputGrid;
 					}
 					else {
-						min = glm::vec3(0.0f);
-						max = glm::vec3(0.0f);
+						mask_grid = vdb->getGridPtr();
 					}
+				}
 
-					bbox.min()[0] = min[0];
-	                bbox.min()[1] = min[1];
-	                bbox.min()[2] = min[2];
-	                bbox.max()[0] = max[0];
-	                bbox.max()[1] = max[1];
-	                bbox.max()[2] = max[2];
-	            }
-	        }
+				if (!mask_grid) {
+					this->add_warning("Mask VDB not found!");
+					return;
+				}
+			}
+			else {
+				glm::vec3 min, max;
 
-	        auto num_level_sets = 0;
-	        for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
-				auto vdb = static_cast<VDBVolume *>(prim);
-
-	            if (is_level_set(vdb)) {
-	                ++num_level_sets;
-	            }
-
-	            openvdb::GridBase::Ptr outGrid;
-
-	            if (mask_grid) {
-	                MaskClipOp op(mask_grid, inside);
-	                process_typed_grid(vdb->getGrid(), vdb->storage(), op);
-	                outGrid = op.outputGrid;
-	            }
+				if (vdb != nullptr) {
+					vdb->computeBBox(min, max);
+				}
 				else {
-	                BBoxClipOp op(bbox, inside);
-	                process_typed_grid(vdb->getGrid(), vdb->storage(), op);
-	                outGrid = op.outputGrid;
-	            }
+					min = glm::vec3(0.0f);
+					max = glm::vec3(0.0f);
+				}
 
-	            /* TODO: find a way to replace a primitive with an another one. */
-				build_vdb_prim(m_collection, outGrid);
-	        }
+				bbox.min()[0] = min[0];
+				bbox.min()[1] = min[1];
+				bbox.min()[2] = min[2];
+				bbox.max()[0] = max[0];
+				bbox.max()[1] = max[1];
+				bbox.max()[2] = max[2];
+			}
+		}
 
-	        if (num_level_sets > 0) {
-	            if (num_level_sets == 1) {
-					this->add_warning("A level set grid was clipped, the"
-					                  " resulting grid might not be a valid"
-					                  " level set.\n");
-	            }
-				else {
-					this->add_warning("Some level sets were clipped, the"
-					                  " resulting grids might not be a valid"
-					                  " level sets.\n");
-	            }
-	        }
-	    }
-		catch (const std::exception &e) {
-			this->add_warning(e.what());
+		auto num_level_sets = 0;
+		for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
+			auto vdb = static_cast<VDBVolume *>(prim);
+
+			if (is_level_set(vdb)) {
+				++num_level_sets;
+			}
+
+			openvdb::GridBase::Ptr outGrid;
+
+			if (mask_grid) {
+				MaskClipOp op(mask_grid, inside);
+				process_typed_grid(vdb->getGrid(), vdb->storage(), op);
+				outGrid = op.outputGrid;
+			}
+			else {
+				BBoxClipOp op(bbox, inside);
+				process_typed_grid(vdb->getGrid(), vdb->storage(), op);
+				outGrid = op.outputGrid;
+			}
+
+			/* TODO: find a way to replace a primitive with an another one. */
+			build_vdb_prim(m_collection, outGrid);
+		}
+
+		if (num_level_sets > 0) {
+			if (num_level_sets == 1) {
+				this->add_warning("A level set grid was clipped, the"
+				                  " resulting grid might not be a valid"
+				                  " level set.\n");
+			}
+			else {
+				this->add_warning("Some level sets were clipped, the"
+				                  " resulting grids might not be a valid"
+				                  " level sets.\n");
+			}
 		}
 	}
 };
