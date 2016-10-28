@@ -93,7 +93,7 @@ NodeFilterLevelSet::NodeFilterLevelSet()
 
 	add_prop("Offset", property_type::prop_float);
 	set_prop_min_max(1, 10);
-	set_prop_default_value_int(1);
+	set_prop_default_value_float(1.0f);
 }
 
 void NodeFilterLevelSet::process()
