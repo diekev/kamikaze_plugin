@@ -24,6 +24,7 @@
 #pragma once
 
 #include <openvdb/openvdb.h>
+#include <openvdb/tools/PointIndexGrid.h>
 
 /* Utility functions to process grids whose types are unkown when manipulated */
 
@@ -36,6 +37,8 @@ enum {
 	GRID_STORAGE_VEC3I,
 	GRID_STORAGE_VEC3S,
 	GRID_STORAGE_VEC3D,
+	GRID_STORAGE_POINT_INDEX,
+	GRID_STORAGE_MASK,
 };
 
 template<typename T1, typename T2>
@@ -75,6 +78,12 @@ inline int get_grid_storage(const openvdb::GridBase &grid)
 	}
 	else if (grid.isType<openvdb::Vec3DGrid>()) {
 		return GRID_STORAGE_VEC3D;
+	}
+	else if (grid.type() == openvdb::tools::PointIndexGrid::gridType()) {
+		return GRID_STORAGE_POINT_INDEX;
+	}
+	else if (grid.type() == openvdb::MaskGrid::gridType()) {
+		return GRID_STORAGE_MASK;
 	}
 
 	return -1;
@@ -153,6 +162,43 @@ inline void call_typed_grid(GridBaseType &grid, OpType &op)
 				return true; \
 			case GRID_STORAGE_VEC3D: \
 				call_typed_grid<openvdb::Vec3DGrid>(grid, op); \
+				return true; \
+		} \
+		return false; \
+	} \
+	template <typename Op> \
+	inline bool process_typed_grid_topology(GridBase grid, int storage, Op &op) \
+	{ \
+		switch (storage) { \
+			case GRID_STORAGE_FLOAT: \
+				call_typed_grid<openvdb::FloatGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_DOUBLE: \
+				call_typed_grid<openvdb::DoubleGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_BOOL: \
+				call_typed_grid<openvdb::BoolGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_INT32: \
+				call_typed_grid<openvdb::Int32Grid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_INT64: \
+				call_typed_grid<openvdb::Int64Grid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_VEC3I: \
+				call_typed_grid<openvdb::Vec3IGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_VEC3S: \
+				call_typed_grid<openvdb::Vec3SGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_VEC3D: \
+				call_typed_grid<openvdb::Vec3DGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_POINT_INDEX: \
+				call_typed_grid<openvdb::tools::PointIndexGrid>(grid, op); \
+				return true; \
+			case GRID_STORAGE_MASK: \
+				call_typed_grid<openvdb::MaskGrid>(grid, op); \
 				return true; \
 		} \
 		return false; \
