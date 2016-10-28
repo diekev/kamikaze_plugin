@@ -162,12 +162,7 @@ public:
 		}
 
 		m_collection->destroy(to_destroy);
-
-		for (auto prim : primitive_iterator(&collection)) {
-			m_collection->add(prim);
-		}
-
-		collection.clear();
+		m_collection->merge_collection(collection);
 	}
 };
 

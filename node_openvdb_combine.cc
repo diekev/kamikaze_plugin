@@ -1054,17 +1054,11 @@ void NodeOpenVDBCombine::process()
 		this->add_warning(ss.str());
 	}
 
-	/* TODO: find a better way to handle these actions. */
-
-	/* Copy created prims to output. */
-	for (auto prim : primitive_iterator(&created_prims)) {
-		m_collection->add(prim);
-	}
-
-	created_prims.clear();
-
 	/* Remove processed prims. */
 	m_collection->destroy(prims_to_delete);
+
+	/* Copy created prims to output. */
+	m_collection->merge_collection(created_prims);
 }
 
 openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,

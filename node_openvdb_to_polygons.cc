@@ -64,9 +64,9 @@ void NodeToPolygons::process()
 	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
 		auto vdb_prim = static_cast<VDBVolume *>(prim);
 
-		if (!is_level_set(vdb_prim)) {
-			continue;
-		}
+//		if (!is_level_set(vdb_prim)) {
+//			continue;
+//		}
 
 		auto grid = openvdb::gridPtrCast<openvdb::FloatGrid>(vdb_prim->getGridPtr());
 
