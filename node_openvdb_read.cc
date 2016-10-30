@@ -52,16 +52,16 @@ NodeOpenVDBRead::NodeOpenVDBRead()
 {
 	addOutput("VDB");
 
-	add_prop("File Path", property_type::prop_input_file);
+	add_prop("filepath", "File Path", property_type::prop_input_file);
 
-	add_prop("Grid Name", property_type::prop_string);
+	add_prop("grid_name", "Grid Name", property_type::prop_string);
 	set_prop_default_value_string("density");
 	set_prop_tooltip("Name of the grid to lookup");
 }
 
 void NodeOpenVDBRead::process()
 {
-	const auto filename = eval_string("File Path");
+	const auto filename = eval_string("filepath");
 
 	if (filename.empty()) {
 		setOutputCollection("VDB", nullptr);
@@ -87,7 +87,7 @@ void NodeOpenVDBRead::process()
 	}
 #endif
 
-	const auto gridname = eval_string("Grid Name");
+	const auto gridname = eval_string("grid_name");
 
 	if (gridname.size() == 0 || !file.hasGrid(gridname)) {
 		setOutputCollection("VDB", nullptr);

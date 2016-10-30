@@ -84,17 +84,17 @@ NodePrune::NodePrune()
 	mode_enum.insert("Inactive",  INACTIVE);
 	mode_enum.insert("Level Set", LEVEL_SET);
 
-	add_prop("Mode", property_type::prop_enum);
+	add_prop("mode", "Mode", property_type::prop_enum);
 	set_prop_enum_values(mode_enum);
 
-	add_prop("Tolerance", property_type::prop_float);
+	add_prop("tolerance", "Tolerance", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 }
 
 void NodePrune::process()
 {
-	const auto mode = eval_int("Mode");
-	const auto tolerance = eval_float("Tolerance");
+	const auto mode = eval_int("mode");
+	const auto tolerance = eval_float("tolerance");
 
 	PruneOp op(mode, tolerance);
 

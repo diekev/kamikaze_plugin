@@ -58,12 +58,12 @@ NodeMeshOBJRead::NodeMeshOBJRead()
 {
 	addOutput("Mesh");
 
-	add_prop("Filename", property_type::prop_input_file);
+	add_prop("filename", "Filename", property_type::prop_input_file);
 }
 
 void NodeMeshOBJRead::process()
 {
-	const auto filename = eval_string("Filename");
+	const auto filename = eval_string("filename");
 
 	if (filename.empty() || !prereadObj(filename)) {
 		return;

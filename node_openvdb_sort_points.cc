@@ -127,7 +127,7 @@ public:
 		addInput("input");
 		addOutput("output");
 
-		add_prop("Bin Size", property_type::prop_float);
+		add_prop("bin_size", "Bin Size", property_type::prop_float);
 		set_prop_default_value_float(1.0f);
 		set_prop_min_max(0.0f, 5.0f);
 		set_prop_tooltip("The size (length of a side) of the cubic bin, in world units.");
@@ -137,11 +137,9 @@ public:
 
 	void process() override
 	{
-		std::cerr << "Begin process\n";
-
 		PrimitiveCollection tmp_collection(m_collection->factory());
 
-	    const auto bin_size = eval_float("Bin Size");
+	    const auto bin_size = eval_float("bin_size");
 
 		std::vector<Primitive *> to_destroy;
 

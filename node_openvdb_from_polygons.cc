@@ -49,17 +49,17 @@ NodeFromPolygons::NodeFromPolygons()
 	addInput("Mesh");
 	addOutput("VDB");
 
-	add_prop("Voxel Size", property_type::prop_float);
+	add_prop("voxel_size", "Voxel Size", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(0.1f);
 	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
 
-	add_prop("Interior Band", property_type::prop_int);
+	add_prop("interior_band", "Interior Band", property_type::prop_int);
 	set_prop_min_max(1, 10);
 	set_prop_default_value_int(3);
 	set_prop_tooltip("Interior width of the generated level set.");
 
-	add_prop("Exterior Band", property_type::prop_int);
+	add_prop("exterior_band", "Exterior Band", property_type::prop_int);
 	set_prop_min_max(1, 10);
 	set_prop_default_value_int(3);
 	set_prop_tooltip("Exterior width of the generated level set.");
@@ -67,9 +67,9 @@ NodeFromPolygons::NodeFromPolygons()
 
 void NodeFromPolygons::process()
 {
-	const auto voxel_size = eval_float("Voxel Size");
-	const auto int_band = eval_int("Interior Band");
-	const auto ext_band = eval_int("Exterior Band");
+	const auto voxel_size = eval_float("voxel_size");
+	const auto int_band = eval_int("interior_band");
+	const auto ext_band = eval_int("exterior_band");
 
 	std::vector<Primitive *> converted_prims;
 

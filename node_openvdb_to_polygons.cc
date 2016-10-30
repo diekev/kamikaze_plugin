@@ -47,19 +47,19 @@ NodeToPolygons::NodeToPolygons()
 	addInput("VDB");
 	addOutput("Mesh");
 
-	add_prop("Iso Value", property_type::prop_float);
+	add_prop("iso_value", "Iso Value", property_type::prop_float);
 	set_prop_min_max(-1.0f, 1.0f);
 	set_prop_tooltip("Crossing point value considered as the surface.");
 
-	add_prop("Adaptivity", property_type::prop_float);
+	add_prop("adaptivity", "Adaptivity", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_tooltip("Determine how closely the isosurface is matched by the resulting mesh.");
 }
 
 void NodeToPolygons::process()
 {
-	const auto iso_value = eval_float("Iso Value");
-	const auto adaptivity = eval_float("Adaptivity");
+	const auto iso_value = eval_float("iso_value");
+	const auto adaptivity = eval_float("adaptivity");
 
 	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
 		auto vdb_prim = static_cast<VDBVolume *>(prim);

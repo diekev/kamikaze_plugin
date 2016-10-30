@@ -119,12 +119,12 @@ public:
 		addInput("mask");
 		addOutput("output");
 
-		add_prop("Use Mask", property_type::prop_bool);
+		add_prop("use_mask", "Use Mask", property_type::prop_bool);
 		set_prop_default_value_bool(false);
 		set_prop_tooltip("If disabled, use the bounding box of the reference geometry\n"
 		                 "as the clipping region.");
 
-		add_prop("Keep Inside", property_type::prop_bool);
+		add_prop("keep_inside", "Keep Inside", property_type::prop_bool);
 		set_prop_default_value_bool(true);
 		set_prop_tooltip("If enabled, keep voxels that lie inside the clipping region.\n"
 		                 "If disabled, keep voxels that lie outside the clipping region.");
@@ -134,8 +134,8 @@ public:
 	{
 		const auto mask_collection = getInputCollection("mask");
 
-		const bool use_mask = eval_bool("Use Mask");
-		const bool inside = eval_bool("Keep Inside");
+		const bool use_mask = eval_bool("use_mask");
+		const bool inside = eval_bool("keep_inside");
 
 		openvdb::BBoxd bbox;
 		openvdb::GridBase::Ptr mask_grid;

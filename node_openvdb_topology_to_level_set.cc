@@ -113,41 +113,41 @@ NodeOpenVDBTopologyToLevelSet::NodeOpenVDBTopologyToLevelSet()
 	rename_items.insert("Custom Append", NAME_APPEND);
 	rename_items.insert("Custom Replace", NAME_REPLACE);
 
-	add_prop("Output Name", property_type::prop_enum);
+	add_prop("output_name", "Output Name", property_type::prop_enum);
 	set_prop_enum_values(rename_items);
 	set_prop_tooltip("Rename output grid(s)");
 
-	add_prop("Custom Name", property_type::prop_string);
+	add_prop("custom_name", "Custom Name", property_type::prop_string);
 	set_prop_tooltip("Used to rename the input grids");
 
 	/* Narrow-band width */
-	add_prop("Use World Space for Band", property_type::prop_bool);
+	add_prop("use_world_space", "Use World Space for Band", property_type::prop_bool);
 
-	add_prop("Half-Band in Voxels", property_type::prop_int);
+	add_prop("half_band", "Half-Band in Voxels", property_type::prop_int);
 	set_prop_default_value_int(3);
 	set_prop_min_max(1, 10);
 	set_prop_tooltip("Specify the half width of the narrow band. "
 	                 "(3 voxel units is optimal for level set operations.)");
 
-	add_prop("Half-Band in World", property_type::prop_float);
+	add_prop("half_band_ws", "Half-Band in World", property_type::prop_float);
 	set_prop_default_value_float(1.0f);
 	set_prop_min_max(1e-5f, 10.0f);
 	set_prop_tooltip("Specify the half width of the narrow band.");
 
-	add_prop("Voxel Dilation", property_type::prop_int);
+	add_prop("dilation", "Voxel Dilation", property_type::prop_int);
 	set_prop_default_value_int(0);
 	set_prop_min_max(0, 10);
 	set_prop_tooltip("Expands the filled voxel region by the specified "
 	                 "number of voxels.");
 
-	add_prop("Closing Width", property_type::prop_int);
+	add_prop("closing", "Closing Width", property_type::prop_int);
 	set_prop_default_value_int(1);
 	set_prop_min_max(1, 10);
 	set_prop_tooltip("First expand the filled voxel region, then shrink it "
 	                 "by the specified number of voxels. This causes holes "
                      "and valleys to be filled.");
 
-	add_prop("Smoothing Steps", property_type::prop_int);
+	add_prop("smoothing", "Smoothing Steps", property_type::prop_int);
 	set_prop_default_value_int(0);
 	set_prop_min_max(0, 10);
 	set_prop_tooltip("Number of smoothing interations");
@@ -155,12 +155,12 @@ NodeOpenVDBTopologyToLevelSet::NodeOpenVDBTopologyToLevelSet()
 
 bool NodeOpenVDBTopologyToLevelSet::update_properties()
 {
-	const auto ws_units = eval_bool("Use World Space for Band");
-    set_prop_visible("Half-Band in Voxels", !ws_units);
-    set_prop_visible("Half-Band in World", ws_units);
+	const auto ws_units = eval_bool("use_world_space");
+    set_prop_visible("half_band", !ws_units);
+    set_prop_visible("half_band_ws", ws_units);
 
-    const auto use_custom_name = (eval_enum("Output Name") != NAME_KEEP);
-    set_prop_visible("Custom Name", use_custom_name);
+    const auto use_custom_name = (eval_enum("output_name") != NAME_KEEP);
+    set_prop_visible("custom_name", use_custom_name);
 
 	return true;
 }
@@ -171,14 +171,14 @@ void NodeOpenVDBTopologyToLevelSet::process()
 	openvdb::util::NullInterrupter boss;
 
 	Converter converter(tmp_collection, boss);
-    converter.world_space_units = eval_bool("Use World Space for Band");
-    converter.band_width_world = eval_float("Half-Band in World");
-    converter.band_width_voxels = eval_int("Half-Band in Voxels");
-    converter.closing_width = eval_int("Closing Width");
-    converter.dilation = eval_int("Voxel Dilation");
-    converter.smoothing_steps = eval_int("Smoothing Steps");
-    converter.output_name = eval_enum("Output Name");
-    converter.custom_name = eval_string("Custom Name");
+    converter.world_space_units = eval_bool("use_world_space");
+    converter.band_width_world = eval_float("half_band_ws");
+    converter.band_width_voxels = eval_int("half_band");
+    converter.closing_width = eval_int("closing");
+    converter.dilation = eval_int("dilation");
+    converter.smoothing_steps = eval_int("smoothing");
+    converter.output_name = eval_enum("output_name");
+    converter.custom_name = eval_string("custom_name");
 
 	primitive_iterator iter(m_collection, VDBVolume::id);
 

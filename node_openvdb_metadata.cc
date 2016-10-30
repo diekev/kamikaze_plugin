@@ -28,20 +28,20 @@
 
 static constexpr auto NODE_NAME = "OpenVDB MetaData";
 
-#define set_class_str "Set Class"
-#define class_str "Class"
+#define set_class_str "set_class"
+#define class_str "class"
 
-#define set_creator_str "Set Creator"
-#define creator_str "Creator"
+#define set_creator_str "set_creator"
+#define creator_str "creator"
 
-#define set_world_str "Set World"
-#define world_str "Transform Values"
+#define set_world_str "set_world"
+#define world_str "transform_values"
 
-#define set_vectype_str "Set Vector Type"
-#define vectype_str "Vector Type"
+#define set_vectype_str "set_vector_type"
+#define vectype_str "vector_type"
 
-#define set_float16_str "Set 16-Bit Floats"
-#define float16_str "Write 16-Bit Floats"
+#define set_float16_str "set_float16"
+#define float16_str "write_float16"
 
 class NodeOpenVDBMetaData : public VDBNode {
 public:
@@ -59,7 +59,7 @@ NodeOpenVDBMetaData::NodeOpenVDBMetaData()
 	addInput("input");
 	addOutput("output");
 
-	add_prop(set_class_str, property_type::prop_bool);
+	add_prop(set_class_str, "Set Class", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
 	{
@@ -70,27 +70,27 @@ NodeOpenVDBMetaData::NodeOpenVDBMetaData()
 			type_enum.insert(openvdb::GridBase::gridClassToMenuName(gridclass), n);
 		}
 
-		add_prop(class_str, property_type::prop_enum);
+		add_prop(class_str, "Class", property_type::prop_enum);
 		set_prop_enum_values(type_enum);
 		set_prop_tooltip("Specify how the grid's values should be interpreted.");
 	}
 
-	add_prop(set_creator_str, property_type::prop_bool);
+	add_prop(set_creator_str, "Set Creator", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop(creator_str, property_type::prop_string);
+	add_prop(creator_str, "Creator", property_type::prop_string);
 	set_prop_tooltip("Specify who created the grid(s).");
 
-	add_prop(set_world_str, property_type::prop_bool);
+	add_prop(set_world_str, "Set World", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop(world_str, property_type::prop_bool);
+	add_prop(world_str, "Transform Values", property_type::prop_bool);
 	set_prop_default_value_bool(true);
 	set_prop_tooltip("For vector-valued grids, specify whether voxel values\n"
 	                 "are in world space and should be affected by transforms\n"
 	                 "or in local space and should not be transformed.");
 
-	add_prop(set_vectype_str, property_type::prop_bool);
+	add_prop(set_vectype_str, "Set Vector Type", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
 	{
@@ -107,15 +107,15 @@ NodeOpenVDBMetaData::NodeOpenVDBMetaData()
 			        + openvdb::GridBase::vecTypeDescription(vectype) + ".";
 		}
 
-		add_prop(vectype_str, property_type::prop_enum);
+		add_prop(vectype_str, "Vector Type", property_type::prop_enum);
 		set_prop_enum_values(type_enum);
 		set_prop_tooltip(help);
 	}
 
-	add_prop(set_float16_str, property_type::prop_bool);
+	add_prop(set_float16_str, "Set 16-Bit Floats", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop(float16_str, property_type::prop_bool);
+	add_prop(float16_str, "Write 16-Bit Floats", property_type::prop_bool);
 	set_prop_default_value_bool(true);
 	set_prop_tooltip("When saving the grid to a file, write floating-point\n"
 	                 "scalar or vector voxel values as 16-bit half floats.");

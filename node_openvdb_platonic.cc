@@ -61,34 +61,34 @@ NodePlatonic::NodePlatonic()
 	platonic_enum.insert("Dodecahedron", PLATONIC_DODE);
 	platonic_enum.insert("Icosahedron",  PLATONIC_ICOSA);
 
-	add_prop("Solid Type", property_type::prop_enum);
+	add_prop("solid_type", "Solid Type", property_type::prop_enum);
 	set_prop_enum_values(platonic_enum);
 
-	add_prop("Radius", property_type::prop_float);
+	add_prop("radius", "Radius", property_type::prop_float);
 	set_prop_min_max(0.1f, 10.0f);
 	set_prop_default_value_float(2.0f);
 
-	add_prop("Voxel Size", property_type::prop_float);
+	add_prop("voxel_size", "Voxel Size", property_type::prop_float);
 	set_prop_min_max(0.01f, 10.0f);
 	set_prop_default_value_float(0.1f);
 	set_prop_tooltip("Uniform voxel size in world units of the generated level set.");
 
-	add_prop("Half Width", property_type::prop_float);
+	add_prop("half_width", "Half Width", property_type::prop_float);
 	set_prop_min_max(3.0f, 10.0f);
 	set_prop_default_value_float(3.0f);
 
-	add_prop("Center", property_type::prop_vec3);
+	add_prop("center", "Center", property_type::prop_vec3);
 	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 }
 
 void NodePlatonic::process()
 {
-	const auto voxel_size = eval_float("Voxel Size");
-	const auto half_width = eval_float("Half Width");
-	const auto radius = eval_float("Radius");
-	const auto center = eval_vec3("Center");
-	const auto type = eval_enum("Solid Type");
+	const auto voxel_size = eval_float("voxel_size");
+	const auto half_width = eval_float("half_width");
+	const auto radius = eval_float("radius");
+	const auto center = eval_vec3("center");
+	const auto type = eval_enum("solid_type");
 
 	openvdb::FloatGrid::Ptr grid;
 

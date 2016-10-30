@@ -142,35 +142,35 @@ NodeNoise::NodeNoise()
 
 	/* ------------------------- Noise parameters. -------------------------- */
 
-	add_prop("Amplitude", property_type::prop_float);
+	add_prop("amplitude", "Amplitude", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Frequency", property_type::prop_float);
+	add_prop("frequency", "Frequency", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Octaves", property_type::prop_int);
+	add_prop("octaves", "Octaves", property_type::prop_int);
 	set_prop_min_max(0, 10);
 	set_prop_default_value_int(0);
 
-	add_prop("Lacunarity", property_type::prop_float);
+	add_prop("lacunarity", "Lacunarity", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(2.0f);
 
-	add_prop("Gain", property_type::prop_float);
+	add_prop("gain", "Gain", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Roughness", property_type::prop_float);
+	add_prop("roughness", "Roughness", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Surface Offset", property_type::prop_float);
+	add_prop("surface_offset", "Surface Offset", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Noise Offset", property_type::prop_vec3);
+	add_prop("noise_offset", "Noise Offset", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
@@ -179,7 +179,7 @@ NodeNoise::NodeNoise()
 	noise_enum.insert("Absolute", NOISE_ABSOLUTE);
 	noise_enum.insert("Inverse Absolute", NOISE_ABSOLUTE_INV);
 
-	add_prop("Noise Mode", property_type::prop_enum);
+	add_prop("noise_mode", "Noise Mode", property_type::prop_enum);
 	set_prop_enum_values(noise_enum);
 
 	/* -------------------------- Mask parameters. -------------------------- */
@@ -190,14 +190,14 @@ NodeNoise::NodeNoise()
 	mask_enum.insert("No noise if mask > threshold & normals align", MASK_GREATER_NRM);
 	mask_enum.insert("Use mask as frequency multiplier", MASK_FREQ_MULT);
 
-	add_prop("Mask Mode", property_type::prop_enum);
+	add_prop("mask_mode", "Mask Mode", property_type::prop_enum);
 	set_prop_enum_values(mask_enum);
 
-	add_prop("Threshold", property_type::prop_float);
+	add_prop("threshold", "Threshold", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(0.0f);
 
-	add_prop("Falloff", property_type::prop_float);
+	add_prop("falloff", "Falloff", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(0.0f);
 }
@@ -206,9 +206,9 @@ bool NodeNoise::update_properties()
 {
 	const auto has_mask = (getInputCollection("mask (optional)") != nullptr);
 
-	set_prop_visible("Mask Mode", has_mask);
-	set_prop_visible("Threshold", has_mask);
-	set_prop_visible("Falloff", has_mask);
+	set_prop_visible("mask_mode", has_mask);
+	set_prop_visible("threshold", has_mask);
+	set_prop_visible("falloff", has_mask);
 
 	return true;
 }
@@ -217,21 +217,21 @@ void NodeNoise::process()
 {
 	/* ------- Evaluate the FractalBoltzman noise parameters from UI. ------- */
 
-    FractalBoltzmanGenerator fbGenerator(eval_float("Frequency"),
-                                         eval_float("Amplitude"),
-                                         eval_int("Octaves"),
-                                         eval_float("Gain"),
-                                         eval_float("Lacunarity"),
-                                         eval_float("Roughness"),
-                                         eval_int("Noise Mode"));
+    FractalBoltzmanGenerator fbGenerator(eval_float("frequency"),
+                                         eval_float("amplitude"),
+                                         eval_int("octaves"),
+                                         eval_float("gain"),
+                                         eval_float("lacunarity"),
+                                         eval_float("roughness"),
+                                         eval_int("noise_mode"));
 
 	NoiseSettings settings;
 
 	/* --------------- Evaluate parameter for blending noise. --------------- */
 
-    settings.offset = eval_float("Surface Offset");
+    settings.offset = eval_float("surface_offset");
 
-	const auto noise_offset = eval_vec3("Noise Offset");
+	const auto noise_offset = eval_vec3("noise_offset");
 
     settings.noise_offset = openvdb::Vec3R(noise_offset[0], noise_offset[1], noise_offset[2]);
 
@@ -253,9 +253,9 @@ void NodeNoise::process()
 			}
 
 			if (vdbPrim != nullptr) {
-	            settings.mask_mode = eval_int("Mask Mode");
-	            settings.threshold = eval_float("Threshold");
-	            settings.falloff = eval_float("Falloff");
+	            settings.mask_mode = eval_int("mask_mode");
+	            settings.threshold = eval_float("threshold");
+	            settings.falloff = eval_float("falloff");
 
 	            maskGrid = &(vdbPrim->getGrid());
 	        }

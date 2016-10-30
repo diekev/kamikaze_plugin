@@ -47,10 +47,10 @@ NodeWrite::NodeWrite()
 	compression_enum.insert("Blosc", 1);
 	compression_enum.insert("None", 2);
 
-	add_prop("Compression", property_type::prop_enum);
+	add_prop("compression", "Compression", property_type::prop_enum);
 	set_prop_enum_values(compression_enum);
 
-	add_prop("Save as Half floats", property_type::prop_bool);
+	add_prop("half_floats", "Save as Half floats", property_type::prop_bool);
 }
 
 void NodeWrite::process()
@@ -61,8 +61,8 @@ void NodeWrite::process()
 		return;
 	}
 
-	const auto compression = eval_enum("Compression");
-	const auto save_as_half = eval_bool("Save as Half floats");
+	const auto compression = eval_enum("compression");
+	const auto save_as_half = eval_bool("half_floats");
 
 	openvdb::io::File file(filename);
 

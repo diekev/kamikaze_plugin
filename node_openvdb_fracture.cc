@@ -76,31 +76,31 @@ NodeOpenVDBFracture::NodeOpenVDBFracture()
 	addInput("instance points (optional)");
 	addOutput("output");
 
-	add_prop("Separate Cutters", property_type::prop_bool);
+	add_prop("separate_cutters", "Separate Cutters", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Enable if multiple cutter objects are provided."
 	                 " This option is only available without instance points.");
 
-	add_prop("Allow Cutter Overlap", property_type::prop_bool);
+	add_prop("allow_overlap", "Allow Cutter Overlap", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Allow consecutive cutter instances to fracture previously"
 	                 " generated fragments.");
 
-	add_prop("Center Cutter Geometry", property_type::prop_bool);
+	add_prop("center_cutter", "Center Cutter Geometry", property_type::prop_bool);
 	set_prop_default_value_bool(true);
 	set_prop_tooltip("Pre-center cutter geometry about the origin before instancing.");
 
-	add_prop("Randomize Cutter Rotation", property_type::prop_bool);
+	add_prop("randomize_cutter", "Randomize Cutter Rotation", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Apply a random rotation to each instance point. This "
 	                 "option is only available when instance points are provided.");
 
-	add_prop("Random Seed", property_type::prop_int);
+	add_prop("random_seed", "Random Seed", property_type::prop_int);
 	set_prop_default_value_int(1);
 	set_prop_min_max(1, 10000);
 	set_prop_tooltip("Seed for the random rotation.");
 
-	add_prop("Split Input Fragments into Primitives", property_type::prop_bool);
+	add_prop("split_fragments", "Split Input Fragments into Primitives", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Split grids with disjoint fragments into multiple grids,"
 	                 " one per fragment. In a chain of fracture nodes this "
@@ -111,7 +111,7 @@ NodeOpenVDBFracture::NodeOpenVDBFracture()
 	type_enum.insert("Pieces", FRACTURE_VIZ_ALL);
 	type_enum.insert("New Fragments", FRACTURE_VIZ_NEW);
 
-	add_prop("Visualization", property_type::prop_enum);
+	add_prop("visualization", "Visualization", property_type::prop_enum);
 	set_prop_enum_values(type_enum);
 	set_prop_tooltip("Randomize output primitive colors.");
 }
@@ -332,10 +332,10 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
                                       PrimitiveCollection *pointGeo)
 {
 	/* Evaluate UI parameters. */
-	const auto randomizeRotation = eval_bool("Randomize Cutter Rotation");
-    const auto cutterOverlap = eval_bool("Allow Cutter Overlap");
-    const auto segmentFragments = eval_bool("Separate Cutters");
-	const auto seed = eval_int("Random Seed");
+	const auto randomizeRotation = eval_bool("randomize_cutter");
+    const auto cutterOverlap = eval_bool("allow_overlap");
+    const auto segmentFragments = eval_bool("separate_cutters");
+	const auto seed = eval_int("random_seed");
 
 	using ValueType = typename GridType::ValueType;
 

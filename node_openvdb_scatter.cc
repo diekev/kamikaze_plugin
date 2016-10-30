@@ -52,14 +52,14 @@ NodeOpenVDBScatter::NodeOpenVDBScatter()
 	addInput("VDB");
 	addOutput("Points");
 
-	add_prop("Keep input VDB grids", property_type::prop_bool);
+	add_prop("keep", "Keep input VDB grids", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("The output will contain the input VDB grids.");
 
-	add_prop("Random Seed", property_type::prop_int);
+	add_prop("random_seed", "Random Seed", property_type::prop_int);
 	set_prop_min_max(0, 1000);
 
-	add_prop("Spread", property_type::prop_float);
+	add_prop("spread", "Spread", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(1.0f);
 	set_prop_tooltip("Defines how far each point may be displaced from the center "
@@ -72,46 +72,46 @@ NodeOpenVDBScatter::NodeOpenVDBScatter()
 	mode_enum.insert("Density", 1);
 	mode_enum.insert("Points Per Voxel", 2);
 
-	add_prop("Mode", property_type::prop_enum);
+	add_prop("mode", "Mode", property_type::prop_enum);
 	set_prop_enum_values(mode_enum);
 	set_prop_tooltip("Specify how to scatter points inside the volume:\n"
 	                 "Fixed: total number of points\n"
                      "Density: number of points per unit volume\n"
                      "Points Per Voxel: number of points per voxel\n");
 
-	add_prop("Count", property_type::prop_int);
+	add_prop("count", "Count", property_type::prop_int);
 	set_prop_min_max(0.0f, 10000.0f);
 	set_prop_default_value_int(5000);
 
-	add_prop("Point Density", property_type::prop_float);
+	add_prop("point_density", "Point Density", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Scale Density", property_type::prop_bool);
+	add_prop("scale_density", "Scale Density", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Use voxel values as local multipliers for the point density.");
 
-	add_prop("Point Count", property_type::prop_float);
+	add_prop("point_count", "Point Count", property_type::prop_float);
 	set_prop_min_max(0.0f, 100.0f);
 	set_prop_default_value_float(8.0f);
 
-	add_prop("Scatter Interior", property_type::prop_bool);
+	add_prop("scatter_tnterior", "Scatter Interior", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Toggle to scatter points in the interior region of a level set. "
 	                 "(Instead of the narrow band region used by default.)");
 
-	add_prop("Verbose", property_type::prop_bool);
+	add_prop("verbose", "Verbose", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 }
 
 bool NodeOpenVDBScatter::update_properties()
 {
-	const auto mode = eval_int("Mode");
+	const auto mode = eval_int("mode");
 
-    set_prop_visible("Count",         (mode == 0));
-    set_prop_visible("Point Density", (mode == 1));
-    set_prop_visible("Scale Density", (mode == 1));
-    set_prop_visible("Point Count",   (mode == 2));
+    set_prop_visible("count",         (mode == 0));
+    set_prop_visible("point_density", (mode == 1));
+    set_prop_visible("scale_density", (mode == 1));
+    set_prop_visible("point_count",   (mode == 2));
 
 	return true;
 }
@@ -167,16 +167,16 @@ bool process_sdf_interior(const openvdb::GridBase &ref_grid, int storage, OpType
 
 void NodeOpenVDBScatter::process()
 {
-	const auto seed = eval_int("Random Seed");
-	const auto mode = eval_enum("Mode");
-	const auto count = static_cast<openvdb::Index64>(eval_int("Count"));
-	const auto count_per_voxel = eval_float("Point Count");
-	const auto density = eval_float("Point Density");
-	const auto interior = eval_bool("Scatter Interior");
-	const auto multiply = eval_bool("Scale Density");
-	const auto verbose = eval_bool("Verbose");
-	const auto spread = eval_float("Spread");
-	const auto keep = eval_bool("Keep input VDB grids");
+	const auto seed = eval_int("random_seed");
+	const auto mode = eval_enum("mode");
+	const auto count = static_cast<openvdb::Index64>(eval_int("count"));
+	const auto count_per_voxel = eval_float("point_count");
+	const auto density = eval_float("point_density");
+	const auto interior = eval_bool("scatter_tnterior");
+	const auto multiply = eval_bool("scale_density");
+	const auto verbose = eval_bool("verbose");
+	const auto spread = eval_float("spread");
+	const auto keep = eval_bool("keep");
 
 	std::vector<Primitive *> primitives;
 	primitives.reserve(m_collection->primitives().size());

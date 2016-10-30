@@ -41,7 +41,7 @@ NodeCreate::NodeCreate()
 {
 	addOutput("VDB");
 
-	add_prop("Grid Name", property_type::prop_string);
+	add_prop("grid_name", "Grid Name", property_type::prop_string);
 	set_prop_default_value_string("VDB Grid");
 
 	EnumProperty storage_enum;
@@ -53,7 +53,7 @@ NodeCreate::NodeCreate()
 	storage_enum.insert("Vec3s", 5);
 	storage_enum.insert("Vec3d", 6);
 
-	add_prop("Storage", property_type::prop_enum);
+	add_prop("storage", "Storage", property_type::prop_enum);
 	set_prop_enum_values(storage_enum);
 
 	EnumProperty vectype_enum;
@@ -63,7 +63,7 @@ NodeCreate::NodeCreate()
 	vectype_enum.insert("Contravariant Relative", 3);
 	vectype_enum.insert("Contravariant Absolute", 4);
 
-	add_prop("Vector Type", property_type::prop_enum);
+	add_prop("vector_type", "Vector Type", property_type::prop_enum);
 	set_prop_enum_values(vectype_enum);
 	set_prop_tooltip("The type of a vector determines how transforms are applied to it\n"
 	                 "Invariant:\n"
@@ -84,16 +84,16 @@ NodeCreate::NodeCreate()
 	gridclass_enum.insert("Fog Volume", 2);
 	gridclass_enum.insert("Staggered", 3);
 
-	add_prop("Grid Class", property_type::prop_enum);
+	add_prop("grid_class", "Grid Class", property_type::prop_enum);
 	set_prop_enum_values(gridclass_enum);
 
-	add_prop("Background Value", property_type::prop_float);
+	add_prop("background", "Background Value", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_float(0.0f);
 	set_prop_tooltip("Unique value returned when accessing a location in space"
 	                 " that does not resolve to a voxel or a tile.");
 
-	add_prop("Voxel Size", property_type::prop_float);
+	add_prop("voxel_size", "Voxel Size", property_type::prop_float);
 	set_prop_min_max(0.01f, 10.0f);
 	set_prop_default_value_float(0.1f);
 	set_prop_tooltip("Uniform voxel size in world units.");
@@ -101,12 +101,12 @@ NodeCreate::NodeCreate()
 
 void NodeCreate::process()
 {
-	const auto background = eval_float("Background Value");
-	const auto voxel_size = eval_float("Voxel Size");
-	const auto gridclass = eval_enum("Grid Class");
-	const auto storage = eval_enum("Storage");
-	const auto vectype = eval_enum("Vector Type");
-	const auto gridname = eval_string("Grid Name");
+	const auto background = eval_float("background");
+	const auto voxel_size = eval_float("voxel_size");
+	const auto gridclass = eval_enum("grid_class");
+	const auto storage = eval_enum("storage");
+	const auto vectype = eval_enum("vector_type");
+	const auto gridname = eval_string("grid_name");
 
 	int storage_type = storage;
 

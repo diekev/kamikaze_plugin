@@ -45,29 +45,29 @@ NodeOpenVDBTransform::NodeOpenVDBTransform()
 	addInput("VDB");
 	addOutput("VDB");
 
-	add_prop("Translate", property_type::prop_vec3);
+	add_prop("translate", "Translate", property_type::prop_vec3);
 	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	add_prop("Rotate", property_type::prop_vec3);
+	add_prop("rotate", "Rotate", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 360.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	add_prop("Scale", property_type::prop_vec3);
+	add_prop("scale", "Scale", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{1.0f, 1.0f, 1.0f});
 
-	add_prop("Pivot", property_type::prop_vec3);
+	add_prop("pivot", "Pivot", property_type::prop_vec3);
 	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 
-	add_prop("Uniform Scale", property_type::prop_float);
+	add_prop("uniform_scale", "Uniform Scale", property_type::prop_float);
 	set_prop_min_max(0.0f, 1000.0f);
 	set_prop_default_value_float(1.0f);
 
-	add_prop("Invert Transformation", property_type::prop_bool);
+	add_prop("invert", "Invert Transformation", property_type::prop_bool);
 
-	add_prop("Transform Vectors", property_type::prop_bool);
+	add_prop("xform_vectors", "Transform Vectors", property_type::prop_bool);
 	set_prop_tooltip("Apply the transformation to the voxels of vector-valued"
 	                 " grids, according to their vector type.");
 }
@@ -89,13 +89,13 @@ struct VectorTransformOp {
 
 void NodeOpenVDBTransform::process()
 {
-	const auto translate = eval_vec3("Translate");
-    const auto rotate = eval_vec3("Rotate");
-    const auto pivot = eval_vec3("Pivot");
-	const auto invert = eval_bool("Invert Transformation");
-	const auto xform_vector = eval_bool("Transform Vectors");
-	const auto uniform_scale = eval_float("Uniform Scale");
-	const auto scale = eval_vec3("Scale") * uniform_scale;
+	const auto translate = eval_vec3("translate");
+    const auto rotate = eval_vec3("rotate");
+    const auto pivot = eval_vec3("pivot");
+	const auto invert = eval_bool("invert");
+	const auto xform_vector = eval_bool("xform_vectors");
+	const auto uniform_scale = eval_float("uniform_scale");
+	const auto scale = eval_vec3("scale") * uniform_scale;
 
 	constexpr auto deg2rad = M_PI / 180.0f;
 

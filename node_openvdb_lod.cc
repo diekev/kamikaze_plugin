@@ -145,27 +145,27 @@ public:
 		lod_enum.insert("Level Range", LOD_RANGE);
 		lod_enum.insert("LOD Pyramid", LOD_PYRAMID);
 
-		add_prop("LOD Mode", property_type::prop_enum);
+		add_prop("mode", "LOD Mode", property_type::prop_enum);
 		set_prop_enum_values(lod_enum);
 
-		add_prop("Level", property_type::prop_float);
+		add_prop("level", "Level", property_type::prop_float);
 		set_prop_min_max(0.0f, 10.0f);
 		set_prop_default_value_float(1.0f);
 		set_prop_tooltip("Specify which level to produce.\n"
 		                 "Level 0 is the highest-resolution level.");
 
-		add_prop("Range", property_type::prop_vec3);
+		add_prop("range", "Range", property_type::prop_vec3);
 		set_prop_min_max(0.0f, 10.0f);
 		set_prop_default_value_vec3(glm::vec3{0.0f, 2.0f, 1.0f});
 		set_prop_tooltip("Specify the inclusive range [start, end, step]");
 
-		add_prop("Count", property_type::prop_int);
+		add_prop("count", "Count", property_type::prop_int);
 		set_prop_min_max(2.0f, 10.0f);
 		set_prop_default_value_int(2);
 		set_prop_tooltip("Number of levels\n"
 		                 "Each level is half the resolution of the previous level.");
 
-		add_prop("Preserve Grid Names", property_type::prop_bool);
+		add_prop("preserve_names", "Preserve Grid Names", property_type::prop_bool);
 		set_prop_default_value_bool(false);
 		set_prop_tooltip("Reuse the name of the input VDB grid.\n"
 		                 "Only available when a single Level is generated.");
@@ -173,12 +173,12 @@ public:
 
 	bool update_properties() override
 	{
-		const auto lod_mode = eval_int("LOD Mode");
+		const auto lod_mode = eval_int("mode");
 
-	    set_prop_visible("Level", lod_mode == LOD_SINGLE);
-	    set_prop_visible("Preserve Grid Names", lod_mode == LOD_SINGLE);
-	    set_prop_visible("Range", lod_mode == LOD_RANGE);
-	    set_prop_visible("Count", lod_mode == LOD_PYRAMID);
+	    set_prop_visible("level", lod_mode == LOD_SINGLE);
+	    set_prop_visible("preserve_names", lod_mode == LOD_SINGLE);
+	    set_prop_visible("range", lod_mode == LOD_RANGE);
+	    set_prop_visible("count", lod_mode == LOD_PYRAMID);
 
 		return true;
 	}
@@ -189,11 +189,11 @@ public:
 		std::vector<Primitive *> to_destroy;
 		openvdb::util::NullInterrupter boss;
 
-		const auto lod_mode = eval_int("LOD Mode");
+		const auto lod_mode = eval_int("mode");
 
 		if (lod_mode == LOD_SINGLE) {
-			const auto reuse_name = eval_bool("Preserve Grid Names") > 0;
-			MultiResGridFractionalOp<1> op(eval_float("Level"));
+			const auto reuse_name = eval_bool("preserve_names") > 0;
+			MultiResGridFractionalOp<1> op(eval_float("level"));
 
 			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
 				auto vdb = static_cast<VDBVolume *>(prim);
@@ -216,7 +216,7 @@ public:
 			}
 		}
 		else if (lod_mode == LOD_RANGE) {
-			const auto range = eval_vec3("Range");
+			const auto range = eval_vec3("range");
 			const auto start = range[0];
 			const auto end = range[1];
 			const auto step = range[2];
@@ -248,7 +248,7 @@ public:
 			}
 		}
 		else if (lod_mode == LOD_PYRAMID) {
-			MultiResGridIntegerOp op(eval_int("Count"));
+			MultiResGridIntegerOp op(eval_int("count"));
 
 			for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
 				auto vdb = static_cast<VDBVolume *>(prim);

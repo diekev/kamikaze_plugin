@@ -118,7 +118,7 @@ public:
 		addInput("input");
 		addOutput("output");
 
-		add_prop("Append Segment Number to Grid Name", property_type::prop_bool);
+		add_prop("append_number", "Append Segment Number to Grid Name", property_type::prop_bool);
 		set_prop_default_value_bool(true);
 	}
 
@@ -137,7 +137,7 @@ public:
 			return;
 		}
 
-		auto append_number = eval_bool("Append Segment Number to Grid Name");
+		auto append_number = eval_bool("append_number");
 		openvdb::util::NullInterrupter boss;
 
 		PrimitiveCollection collection(m_collection->factory());

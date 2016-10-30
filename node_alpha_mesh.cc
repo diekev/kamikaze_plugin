@@ -52,7 +52,7 @@ NodeAlphaMesh::NodeAlphaMesh()
 	addInput("Points");
 	addOutput("Mesh");
 
-	add_prop("Point Radius", property_type::prop_float);
+	add_prop("point_radius", "Point Radius", property_type::prop_float);
 	set_prop_min_max(0.0f, 2.0f);
 	set_prop_default_value_float(1.0f);
 	set_prop_tooltip("Set the uniform radius of the points.");
@@ -194,7 +194,7 @@ void construct_alpha_mesh(PointList &points, const float radius,
 
 void NodeAlphaMesh::process()
 {
-	const auto radius = eval_float("Point Radius");
+	const auto radius = eval_float("point_radius");
 
 	for (auto &prim : primitive_iterator(m_collection, PrimPoints::id)) {
 		auto points = static_cast<PrimPoints *>(prim);

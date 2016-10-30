@@ -70,7 +70,7 @@ NodeFilterLevelSet::NodeFilterLevelSet()
 	type_enum.insert("Laplacian",      LS_FILTER_LAPLACIAN);
 	type_enum.insert("Offset",         LS_FILTER_OFFSET);
 
-	add_prop("Filter Type", property_type::prop_enum);
+	add_prop("filter_type", "Filter Type", property_type::prop_enum);
 	set_prop_enum_values(type_enum);
 
 	EnumProperty accuracy_enum;
@@ -80,18 +80,18 @@ NodeFilterLevelSet::NodeFilterLevelSet()
 	accuracy_enum.insert("WENO5 Bias",    LS_FILTER_ACC_WENO5);
 	accuracy_enum.insert("HJ WENO5 Bias", LS_FILTER_ACC_HJWENO5);
 
-	add_prop("Accuracy", property_type::prop_enum);
+	add_prop("accuracy", "Accuracy", property_type::prop_enum);
 	set_prop_enum_values(accuracy_enum);
 
-	add_prop("Iterations", property_type::prop_int);
+	add_prop("iterations", "Iterations", property_type::prop_int);
 	set_prop_min_max(1, 10);
 	set_prop_default_value_int(1);
 
-	add_prop("Width", property_type::prop_int);
+	add_prop("width", "Width", property_type::prop_int);
 	set_prop_min_max(1, 10);
 	set_prop_default_value_int(1);
 
-	add_prop("Offset", property_type::prop_float);
+	add_prop("offset", "Offset", property_type::prop_float);
 	set_prop_min_max(1, 10);
 	set_prop_default_value_float(1.0f);
 }
@@ -100,11 +100,11 @@ void NodeFilterLevelSet::process()
 {
 	using namespace openvdb;
 
-	const auto type = eval_enum("Filter Type");
-	const auto accuracy = eval_enum("Accuracy");
-	const auto iterations = eval_int("Iterations");
-	const auto width = eval_int("Width");
-	const auto offset = eval_float("Offset");
+	const auto type = eval_enum("filter_type");
+	const auto accuracy = eval_enum("accuracy");
+	const auto iterations = eval_int("iterations");
+	const auto width = eval_int("width");
+	const auto offset = eval_float("offset");
 
 	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
 		auto vdb_prim = static_cast<VDBVolume *>(prim);

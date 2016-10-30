@@ -411,7 +411,7 @@ struct CombineOp {
 		const auto needA = need_grid_a(op);
 		const auto needB = need_grid_b(op);
 		const auto needBoth = needA && needB;
-		const auto samplingOrder = self->eval_int("Interpolation");
+		const auto samplingOrder = self->eval_int("interpolation");
 
 		/* One of RESAMPLE_A, RESAMPLE_B or RESAMPLE_OFF, specifying whether */
 		/* grid A, grid B or neither grid was resampled */
@@ -535,8 +535,8 @@ struct CombineOp {
 
 		const auto needA = need_grid_a(op);
 		const auto needB = need_grid_b(op);
-		const auto aMult = self->eval_float("A Multiplier");
-		const auto bMult = self->eval_float("B Multiplier");
+		const auto aMult = self->eval_float("a_multiplier");
+		const auto bMult = self->eval_float("b_multiplier");
 
 		const GridT *aGrid = NULL, *bGrid = NULL;
 
@@ -728,7 +728,7 @@ struct CombineOp {
 			this->resampleGrids(aGrid, bGrid);
 		}
 
-		const auto aMult = self->eval_float("A Multiplier");
+		const auto aMult = self->eval_float("a_multiplier");
 
 		typename AGridT::Ptr resultGrid;
 
@@ -769,12 +769,12 @@ struct CombineOp {
 		typedef typename GridT::ValueType ValueT;
 
 		const auto ZERO = openvdb::zeroVal<ValueT>();
-		const auto prune = self->eval_bool("Prune");
-		const auto flood = self->eval_bool("Signed-Flood-Fill Output SDFs");
-		const auto deactivate = self->eval_bool("Deactivate Background Voxels");
+		const auto prune = self->eval_bool("prune");
+		const auto flood = self->eval_bool("signed_flood_fill");
+		const auto deactivate = self->eval_bool("deactivate_background");
 
 		if (deactivate) {
-			const auto deactivationTolerance = self->eval_float("Deactivate Tolerance");
+			const auto deactivationTolerance = self->eval_float("deactivate_tolerance");
 
 			/* Mark active output tiles and voxels as inactive if their */
 			/* values match the output grid's background value. */
@@ -788,7 +788,7 @@ struct CombineOp {
 		}
 
 		if (prune) {
-			const float tolerance = self->eval_float("Prune Tolerance");
+			const float tolerance = self->eval_float("prune_tolerance");
 			openvdb::tools::prune(resultGrid->tree(), ValueT(ZERO + tolerance));
 		}
 
@@ -831,10 +831,10 @@ NodeOpenVDBCombine::NodeOpenVDBCombine()
 	addInput("input b (optional)");
 	addOutput("output");
 
-	add_prop("Flatten All B into A", property_type::prop_bool);
+	add_prop("flatten", "Flatten All B into A", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop("Combine A/B Pairs", property_type::prop_bool);
+	add_prop("combine", "Combine A/B Pairs", property_type::prop_bool);
 	set_prop_default_value_bool(true);
 	set_prop_tooltip("If disabled, combine each grid in group A\n"
 	                 "with the first grid in group B.  Otherwise,\n"
@@ -862,16 +862,16 @@ NodeOpenVDBCombine::NodeOpenVDBCombine()
 	operation_enum.insert("Activity Intersection", OP_TOPO_INTERSECTION);
 	operation_enum.insert("Activity Difference", OP_TOPO_DIFFERENCE);
 
-	add_prop("Operation", property_type::prop_enum);
+	add_prop("operation", "Operation", property_type::prop_enum);
 	set_prop_enum_values(operation_enum);
 
-	add_prop("A Multiplier", property_type::prop_float);
+	add_prop("a_multiplier", "A Multiplier", property_type::prop_float);
 	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_float(1.0f);
 	set_prop_tooltip("Multiply voxel values in the A grid by a scalar\n"
 	                 "before combining the A grid with the B grid.");
 
-	add_prop("B Multiplier", property_type::prop_float);
+	add_prop("b_multiplier", "B Multiplier", property_type::prop_float);
 	set_prop_min_max(-10.0f, 10.0f);
 	set_prop_default_value_float(1.0f);
 	set_prop_tooltip("Multiply voxel values in the B grid by a scalar\n"
@@ -885,7 +885,7 @@ NodeOpenVDBCombine::NodeOpenVDBCombine()
 	resample_enum.insert("Higher-res to Match Lower-res", RESAMPLE_HI_RES);
 	resample_enum.insert("Lower-res to Match Higher-res", RESAMPLE_LO_RES);
 
-	add_prop("Resample", property_type::prop_enum);
+	add_prop("resample", "Resample", property_type::prop_enum);
 	set_prop_enum_values(resample_enum);
 	set_prop_tooltip("If the A and B grids have different transforms, one grid should\n"
 	                 "be resampled to match the other before the two are combined.\n"
@@ -897,15 +897,15 @@ NodeOpenVDBCombine::NodeOpenVDBCombine()
 	interpolation_enum.insert("Linear",    LINEAR);
 	interpolation_enum.insert("Quadratic", QUADRATIC);
 
-	add_prop("Interpolation", property_type::prop_enum);
+	add_prop("interpolation", "Interpolation", property_type::prop_enum);
 	set_prop_enum_values(interpolation_enum);
 	set_prop_tooltip("Specify the type of interpolation to be used when\n"
 	                 "resampling one grid to match the other's transform.");
 
-	add_prop("Deactivate Background Voxels", property_type::prop_bool);
+	add_prop("deactivate_background", "Deactivate Background Voxels", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop("Deactivate Tolerance", property_type::prop_float);
+	add_prop("deactivate_tolerance", "Deactivate Tolerance", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(0.0f);
 	set_prop_tooltip("Deactivate active output voxels whose values\n"
@@ -913,38 +913,38 @@ NodeOpenVDBCombine::NodeOpenVDBCombine()
 	                 "Voxel values are considered equal if they differ\n"
 	                 "by less than the specified tolerance.");
 
-	add_prop("Prune", property_type::prop_bool);
+	add_prop("prune", "Prune", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 
-	add_prop("Prune Tolerance", property_type::prop_float);
+	add_prop("prune_tolerance", "Prune Tolerance", property_type::prop_float);
 	set_prop_min_max(0.0f, 1.0f);
 	set_prop_default_value_float(0.0f);
 	set_prop_tooltip("Collapse regions of constant value in output grids.\n"
 	                 "Voxel values are considered equal if they differ\n"
 	                 "by less than the specified tolerance.");
 
-	add_prop("Signed-Flood-Fill Output SDFs", property_type::prop_bool);
+	add_prop("signed_flood_fill", "Signed-Flood-Fill Output SDFs", property_type::prop_bool);
 	set_prop_default_value_bool(false);
 	set_prop_tooltip("Reclassify inactive voxels of level set grids as either inside or outside.");
 }
 
 bool NodeOpenVDBCombine::update_properties()
 {
-	set_prop_visible("Interpolation", eval_enum("Resample") != RESAMPLE_OFF);
-	set_prop_visible("Deactivate Tolerance", eval_bool("Deactivate Background Voxels"));
-	set_prop_visible("Prune Tolerance", eval_bool("Prune"));
-	set_prop_visible("Combine A/B Pairs", eval_bool("Flatten All B into A") == false);
+	set_prop_visible("interpolation", eval_enum("resample") != RESAMPLE_OFF);
+	set_prop_visible("deactivate_tolerance", eval_bool("deactivate_background"));
+	set_prop_visible("prune_tolerance", eval_bool("prune"));
+	set_prop_visible("combine", eval_bool("flatten") == false);
 	return true;
 }
 
 void NodeOpenVDBCombine::process()
 {
-	const auto pairs = eval_bool("Combine A/B Pairs");
-	const auto flatten = eval_bool("Flatten All B into A");
-	const auto op = eval_int("Operation");
+	const auto pairs = eval_bool("combine");
+	const auto flatten = eval_bool("flatten");
+	const auto op = eval_int("operation");
 	const auto needA = need_grid_a(op);
 	const auto needB = need_grid_b(op);
-	const auto resample = eval_int("Resample");
+	const auto resample = eval_int("resample");
 
 	std::vector<Primitive *> prims_to_delete;
 	PrimitiveCollection created_prims(m_collection->factory());

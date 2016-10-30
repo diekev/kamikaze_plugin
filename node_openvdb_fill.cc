@@ -89,35 +89,35 @@ NodeFill::NodeFill()
 	mode_enum.insert("Index", 0);
 	mode_enum.insert("World", 1);
 
-	add_prop("Mode", property_type::prop_enum);
+	add_prop("mode", "Mode", property_type::prop_enum);
 	set_prop_enum_values(mode_enum);
 	set_prop_tooltip("Index - Input coordinates are set in index space\n"
 	                 "World - Input coordinates are set in world space");
 
-	add_prop("Min", property_type::prop_vec3);
+	add_prop("min", "Min", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 1000.0f);
 	set_prop_default_value_vec3(glm::vec3{ 0.0f, 0.0f, 0.0f });
 
-	add_prop("Max", property_type::prop_vec3);
+	add_prop("max", "Max", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 1000.0f);
 	set_prop_default_value_vec3(glm::vec3{ 1.0f, 1.0f, 1.0f });
 
-	add_prop("Value", property_type::prop_float);
+	add_prop("value", "Value", property_type::prop_float);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_tooltip("Value to fill the voxels with");
 
-	add_prop("Set Active", property_type::prop_bool);
+	add_prop("activate", "Set Active", property_type::prop_bool);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_tooltip("Mark voxels in the filled region as active");
 }
 
 void NodeFill::process()
 {
-	const auto mode = eval_int("Mode");
-	const auto value = eval_float("Value");
-	const auto min = eval_vec3("Min");
-	const auto max = eval_vec3("Max");
-	const auto activate = eval_bool("Set Active");
+	const auto mode = eval_int("mode");
+	const auto value = eval_float("value");
+	const auto min = eval_vec3("min");
+	const auto max = eval_vec3("max");
+	const auto activate = eval_bool("activate");
 
 	std::unique_ptr<FillOp> op;
 
