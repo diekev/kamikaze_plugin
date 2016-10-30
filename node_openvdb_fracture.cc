@@ -46,6 +46,7 @@ public:
 	~NodeOpenVDBFracture() = default;
 
 	void process() override;
+	bool update_properties() override;
 
 	template <typename GridType>
 	void do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
@@ -114,6 +115,21 @@ NodeOpenVDBFracture::NodeOpenVDBFracture()
 	add_prop("visualization", "Visualization", property_type::prop_enum);
 	set_prop_enum_values(type_enum);
 	set_prop_tooltip("Randomize output primitive colors.");
+}
+
+bool NodeOpenVDBFracture::update_properties()
+{
+    const bool has_instance_points = (getInputCollection("instance points (optional)") != nullptr);
+    const bool multiple_cutters = eval_bool("separate_cutters");
+    const bool randomize_rotation =eval_bool("randomize_cutter");
+
+    set_prop_visible("separate_cutters", !has_instance_points);
+    set_prop_visible("center_cutter", has_instance_points);
+    set_prop_visible("randomize_cutter", has_instance_points);
+    set_prop_visible("random_seed", randomize_rotation);
+    set_prop_visible("allow_overlap", has_instance_points || multiple_cutters);
+
+    return true;
 }
 
 void NodeOpenVDBFracture::process()
@@ -334,7 +350,7 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 	/* Evaluate UI parameters. */
 	const auto randomizeRotation = eval_bool("randomize_cutter");
     const auto cutterOverlap = eval_bool("allow_overlap");
-    const auto segmentFragments = eval_bool("separate_cutters");
+    const auto segmentFragments = eval_bool("split_fragments");
 	const auto seed = eval_int("random_seed");
 
 	using ValueType = typename GridType::ValueType;
@@ -376,11 +392,22 @@ void NodeOpenVDBFracture::do_fracture(std::list<openvdb::GridBase::Ptr> &grids,
 			points.reserve(mpoints->size());
 			faces.reserve(polys->size());
 
+			auto xform = transform->copy();
+
+			if (!instancePoints.empty() && !eval_bool("separate_cutters") && eval_bool("center_cutter")) {
+#if 0 /* TODO */
+	            UT_BoundingBox pointBBox;
+	            cutterGeo->getPointBBox(&pointBBox);
+	            UT_Vector3 center = pointBBox.center();
+	            xform->postTranslate(openvdb::Vec3s(center.x(), center.y(), center.z()));
+#endif
+	        }
+
 			openvdb::Vec3s point;
 			for (size_t n = 0, N = mpoints->size(); n < N; ++n) {
 				const auto &vert = (*mpoints)[n];
 				const auto &tmp = mesh->matrix() * vert;
-				point = transform->worldToIndex({ tmp[0], tmp[1], tmp[2] });
+				point = xform->worldToIndex({ tmp[0], tmp[1], tmp[2] });
 				points.push_back(point);
 			}
 
