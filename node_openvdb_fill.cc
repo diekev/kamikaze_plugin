@@ -32,6 +32,7 @@ static constexpr auto NODE_NAME = "OpenVDB Fill";
 enum {
 	INDEX = 0,
 	WORLD = 1,
+	GEOM  = 2,
 };
 
 class NodeFill : public VDBNode {
@@ -39,26 +40,89 @@ public:
 	NodeFill();
 
 	void process() override;
+	bool update_properties() override;
 };
+
+// Convert a Vec3 value to a vector of another value type or to a scalar value
+
+inline const openvdb::Vec3R &convert_value(const openvdb::Vec3R &val)
+{
+	return val;
+}
+
+// Overload for scalar types (discards all but the first vector component)
+template<typename ValueType>
+inline typename std::enable_if<!openvdb::VecTraits<ValueType>::IsVec, ValueType>::type
+convert_value(const openvdb::Vec3R &val)
+{
+    return static_cast<ValueType>(val[0]);
+}
+
+// Overload for Vec2 types (not currently used)
+template<typename ValueType>
+inline typename std::enable_if<
+    openvdb::VecTraits<ValueType>::IsVec && openvdb::VecTraits<ValueType>::Size == 2,
+    ValueType>::type
+convert_value(const openvdb::Vec3R &val)
+{
+    typedef typename openvdb::VecTraits<ValueType>::ElementType ElemType;
+
+    return static_cast<ValueType>(static_cast<ElemType>(val[0]),
+	                              static_cast<ElemType>(val[1]));
+}
+
+// Overload for Vec3 types
+template<typename ValueType>
+inline typename std::enable_if<
+    openvdb::VecTraits<ValueType>::IsVec && openvdb::VecTraits<ValueType>::Size == 3,
+    ValueType>::type
+convert_value(const openvdb::Vec3R &val)
+{
+    typedef typename openvdb::VecTraits<ValueType>::ElementType ElemType;
+
+    return static_cast<ValueType>(static_cast<ElemType>(val[0]),
+	                              static_cast<ElemType>(val[1]),
+	                              static_cast<ElemType>(val[2]));
+}
+
+// Overload for Vec4 types (not currently used)
+template<typename ValueType>
+inline typename std::enable_if<
+    openvdb::VecTraits<ValueType>::IsVec && openvdb::VecTraits<ValueType>::Size == 4,
+    ValueType>::type
+convert_value(const openvdb::Vec3R &val)
+{
+    typedef typename openvdb::VecTraits<ValueType>::ElementType ElemType;
+    return static_cast<ValueType>(static_cast<ElemType>(val[0]),
+	                              static_cast<ElemType>(val[1]),
+	                              static_cast<ElemType>(val[2]),
+	                              static_cast<ElemType>(1.0));
+}
 
 class FillOp {
 	const openvdb::math::CoordBBox indexBBox;
     const openvdb::BBoxd worldBBox;
-	const float value;
+	openvdb::Vec3R value;
 	const bool active;
 
 public:
-	FillOp(const openvdb::math::CoordBBox &b, const float val, bool on)
+	FillOp(const openvdb::math::CoordBBox &b, const glm::vec3 &val, bool on)
 	    : indexBBox(b)
-	    , value(val)
 	    , active(on)
-    {}
+    {
+		value[0] = val[0];
+		value[1] = val[1];
+		value[2] = val[2];
+	}
 
-    FillOp(const openvdb::BBoxd &b, const float val, bool on)
+    FillOp(const openvdb::BBoxd &b, const glm::vec3 &val, bool on)
 	    : worldBBox(b)
-	    , value(val)
 	    , active(on)
-    {}
+    {
+		value[0] = val[0];
+		value[1] = val[1];
+		value[2] = val[2];
+	}
 
 	template<typename GridType>
     void operator()(GridType &grid) const
@@ -75,70 +139,132 @@ public:
             bbox.reset(openvdb::Coord::floor(imin), openvdb::Coord::ceil(imax));
         }
 
-        grid.fill(bbox, ValueT(value), active);
+        grid.fill(bbox, convert_value<ValueT>(value), active);
     }
 };
 
 NodeFill::NodeFill()
     : VDBNode(NODE_NAME)
 {
-	addInput("VDB");
-	addOutput("VDB");
+	addInput("input");
+	addInput("bouding geom (optional)");
+	addOutput("output");
 
 	EnumProperty mode_enum;
-	mode_enum.insert("Index", 0);
-	mode_enum.insert("World", 1);
+	mode_enum.insert("Min and Max in Index Space", INDEX);
+	mode_enum.insert("Min and Max in World Space", WORLD);
+	mode_enum.insert("Reference Geometry", WORLD);
 
-	add_prop("mode", "Mode", property_type::prop_enum);
+	add_prop("mode", "Bounds", property_type::prop_enum);
 	set_prop_enum_values(mode_enum);
-	set_prop_tooltip("Index - Input coordinates are set in index space\n"
-	                 "World - Input coordinates are set in world space");
+	set_prop_tooltip("Index Space:\n"
+	                 "    Interpret the given min and max coordinates in index-space units.\n"
+	                 "World Space:\n"
+	                 "    Interpret the given min and max coordinates in world-space units.\n"
+	                 "Reference Geometry:\n"
+	                 "    Use the world-space bounds of the reference input geometry.\n");
 
 	add_prop("min", "Min", property_type::prop_vec3);
-	set_prop_min_max(0.0f, 1000.0f);
+	set_prop_min_max(-1000.0f, 1000.0f);
 	set_prop_default_value_vec3(glm::vec3{ 0.0f, 0.0f, 0.0f });
 
 	add_prop("max", "Max", property_type::prop_vec3);
-	set_prop_min_max(0.0f, 1000.0f);
+	set_prop_min_max(-1000.0f, 1000.0f);
 	set_prop_default_value_vec3(glm::vec3{ 1.0f, 1.0f, 1.0f });
 
-	add_prop("value", "Value", property_type::prop_float);
+	add_prop("world_min", "Min", property_type::prop_vec3);
+	set_prop_min_max(-10.0f, 10.0f);
+	set_prop_default_value_vec3(glm::vec3{ 0.0f, 0.0f, 0.0f });
+
+	add_prop("world_max", "Max", property_type::prop_vec3);
+	set_prop_min_max(-10.0f, 10.0f);
+	set_prop_default_value_vec3(glm::vec3{ 1.0f, 1.0f, 1.0f });
+
+	add_prop("value", "Value", property_type::prop_vec3);
 	set_prop_min_max(0.0f, 10.0f);
-	set_prop_tooltip("Value to fill the voxels with");
+	set_prop_tooltip("The value with which to fill voxels\n"
+	                 "(y and z are ignored when filling scalar grids)");
 
 	add_prop("activate", "Set Active", property_type::prop_bool);
 	set_prop_min_max(0.0f, 10.0f);
 	set_prop_tooltip("Mark voxels in the filled region as active");
 }
 
+bool NodeFill::update_properties()
+{
+	auto mode = eval_enum("mode");
+
+	set_prop_visible("min", mode == INDEX);
+	set_prop_visible("max", mode == INDEX);
+
+	set_prop_visible("world_min", mode == WORLD);
+	set_prop_visible("world_max", mode == WORLD);
+
+	return true;
+}
+
 void NodeFill::process()
 {
 	const auto mode = eval_int("mode");
-	const auto value = eval_float("value");
+	const auto value = eval_vec3("value");
 	const auto min = eval_vec3("min");
 	const auto max = eval_vec3("max");
+	const auto world_min = eval_vec3("world_min");
+	const auto world_max = eval_vec3("world_max");
 	const auto activate = eval_bool("activate");
 
 	std::unique_ptr<FillOp> op;
 
+	switch (mode) {
+		case INDEX:
+		{
+			openvdb::math::Coord co_min((int)min[0], (int)min[1], (int)min[2]);
+			openvdb::math::Coord co_max((int)max[0], (int)min[1], (int)min[2]);
+
+			op.reset(new FillOp(openvdb::math::CoordBBox(co_min, co_max), value, activate));
+			break;
+		}
+		case WORLD:
+		{
+			op.reset(new FillOp(openvdb::BBoxd(&world_min[0], &world_max[0]), value, activate));
+			break;
+		}
+		case GEOM:
+		{
+			openvdb::BBoxd bbox;
+			const auto ref_coll = getInputCollection("bouding geom (optional)");
+
+			if (ref_coll != nullptr) {
+				auto iter = primitive_iterator(ref_coll);
+				auto prim = iter.get();
+
+				if (prim == nullptr) {
+					throw std::runtime_error("No reference geometry found!");
+				}
+
+				glm::vec3 geom_min, geom_max;
+				prim->computeBBox(geom_min, geom_max);
+
+				bbox.min()[0] = geom_min[0];
+				bbox.min()[1] = geom_min[1];
+				bbox.min()[2] = geom_min[2];
+				bbox.max()[0] = geom_max[0];
+				bbox.max()[1] = geom_max[1];
+				bbox.max()[2] = geom_max[2];
+			}
+			else {
+				throw std::runtime_error("Reference input is unconnected!");
+			}
+
+			op.reset(new FillOp(bbox, value, activate));
+			break;
+		}
+	}
+
 	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
 		auto vdb_prim = static_cast<VDBVolume *>(prim);
-
-		switch (mode) {
-			case INDEX:
-			{
-				openvdb::math::Coord co_min((int)min[0], (int)min[1], (int)min[2]);
-				openvdb::math::Coord co_max((int)max[0], (int)min[1], (int)min[2]);
-
-				op.reset(new FillOp(openvdb::math::CoordBBox(co_min, co_max), value, activate));
-				break;
-			}
-			case WORLD:
-				op.reset(new FillOp(openvdb::BBoxd(&min[0], &max[0]), value, activate));
-				break;
-		}
-
 		auto grid = vdb_prim->getGridPtr();
+
 		process_typed_grid(*grid, vdb_prim->storage(), *op);
 
 		vdb_prim->setGrid(grid);

@@ -27,3 +27,5 @@
 #include <vector>
 
 std::string join(const std::vector<std::string> &strings, const std::string &separator = "");
+
+bool find_match(const std::string &str, const std::string &substr);

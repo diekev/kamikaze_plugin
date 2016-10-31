@@ -35,3 +35,17 @@ std::string join(const std::vector<std::string> &strings, const std::string &sep
 
 	return ret;
 }
+
+bool find_match(const std::string &str, const std::string &substr)
+{
+	if (str.empty() || substr.empty()) {
+		return false;
+	}
+
+	/* Anything matches a wildcard. */
+	if (substr == "*") {
+		return true;
+	}
+
+	return (str.find(substr) != std::string::npos);
+}

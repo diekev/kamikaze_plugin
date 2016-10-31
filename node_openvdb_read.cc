@@ -25,6 +25,7 @@
 #include "node_openvdb.h"
 
 #include "util_openvdb_process.h"
+#include "util_string.h"
 #include "volumebase.h"
 
 static auto begin(const openvdb::io::File &file)
@@ -45,63 +46,151 @@ public:
 	NodeOpenVDBRead();
 
 	void process() override;
+	bool update_properties() override;
 };
 
 NodeOpenVDBRead::NodeOpenVDBRead()
     : VDBNode(NODE_NAME)
 {
-	addOutput("VDB");
+	addOutput("output");
+
+	openvdb::initialize();
+
+	add_prop("metadata_only", "Read Metadata Only", property_type::prop_bool);
+	set_prop_tooltip("If enabled, output empty grids populated with\n"
+	                 "their metadata and transforms only.\n");
 
 	add_prop("filepath", "File Path", property_type::prop_input_file);
+	set_prop_tooltip("Select a VDB file.");
 
-	add_prop("grid_name", "Grid Name", property_type::prop_string);
-	set_prop_default_value_string("density");
-	set_prop_tooltip("Name of the grid to lookup");
+	add_prop("grids", "Grid(s)", property_type::prop_list);
+	set_prop_default_value_string("*");
+	set_prop_tooltip("Names of the grid(s) to read.");
+
+	/* Delayed loading. */
+	add_prop("delayload", "Delay Loading", property_type::prop_bool);
+	set_prop_default_value_bool(true);
+	set_prop_tooltip("Don't allocate memory for or read voxel values until the values\n"
+	                 "are actually accessed.\n\n"
+		             "Delayed loading can significantly lower memory usage, but\n"
+		             "note that viewport visualization of a volume usually requires\n"
+		             "the entire volume to be loaded into memory.");
+
+    /* Localization file size slider. */
+	add_prop("copylimit", "Copy if smaller than", property_type::prop_float);
+	set_prop_default_value_float(0.5f);
+	set_prop_min_max(0.0f, 10.0f);
+	set_prop_tooltip("When delayed loading is enabled, a file must not be modified on disk before\n"
+	                 "it has been fully read.  For safety, files smaller than the given size (in GB)\n"
+		             "will be copied to a private, temporary location (either $OPENVDB_TEMP_DIR,\n"
+		             "$TMPDIR or a system default temp directory).");
+}
+
+bool NodeOpenVDBRead::update_properties()
+{
+	const auto delayload = eval_bool("delayload");
+    set_prop_visible("copylimit", delayload);
+
+	const auto filename = eval_string("filepath");
+
+	if (filename.empty()) {
+		return true;
+	}
+
+	EnumProperty items;
+	items.insert("*", 0);
+
+	try {
+		openvdb::io::File file(filename);
+        file.open();
+
+        // Loop over the names of all of the grids in the file.
+        for (auto iter = file.beginName(); iter != file.endName(); ++iter) {
+            // Add the grid's name to the list.
+			items.insert(iter.gridName(), 0);
+        }
+
+        file.close();
+    } catch (...) {}
+
+	for (Property &prop : this->props()) {
+		if (prop.name == "grids") {
+			prop.enum_items = items;
+		}
+	}
+
+	return true;
 }
 
 void NodeOpenVDBRead::process()
 {
+	const auto readMetadataOnly = eval_bool("metadata_only");
 	const auto filename = eval_string("filepath");
-
-	if (filename.empty()) {
-		setOutputCollection("VDB", nullptr);
-		return;
-	}
-
-	openvdb::initialize();
+	const auto grids = eval_string("grids");
+	const auto delayedLoad = eval_bool("delayload");
+    const auto copyMaxBytes = static_cast<openvdb::Index64>(1.0e9 * eval_float("copylimit"));
 
 	openvdb::io::File file(filename);
+	openvdb::MetaMap::Ptr fileMetadata;
 
-	if (!file.open()) {
-		setOutputCollection("VDB", nullptr);
-		std::stringstream ss;
-		ss << "Unable to open file \'" << filename << "\'\n";
-		this->add_warning(ss.str());
+	try {
+		/* Open the VDB file, but don't read any grids yet. */
+		file.setCopyMaxBytes(copyMaxBytes);
+        file.open(delayedLoad);
+
+		/* Read the file-level metadata. */
+        fileMetadata = file.getMetadata();
+
+		if (!fileMetadata) {
+			fileMetadata.reset(new openvdb::MetaMap);
+		}
+	}
+	catch (const std::exception &e) {
+		this->add_warning(e.what());
 		return;
 	}
 
-#if 0
-	std::cerr << "Grids in file:\n";
-	for (auto iter = begin(file), eiter = end(file); iter != eiter; ++iter) {
-		std::cerr << *iter << "\n";
+	for (auto iter = file.beginName(); iter != file.endName(); ++iter) {
+		/* Skip grids whose names don't match the user-supplied mask. */
+		const auto &gridName = iter.gridName();
+
+		if (!find_match(grids, gridName)) {
+			continue;
+		}
+
+		openvdb::GridBase::Ptr grid;
+
+		if (readMetadataOnly) {
+			grid = file.readGridMetadata(gridName);
+		}
+		else {
+			grid = file.readGrid(gridName);
+		}
+
+		if (!grid) {
+			continue;
+		}
+
+		/* Copy file-level metadata into the grid, then create (if necessary)
+		 * and set a primitive attribute for each metadata item. */
+		for (auto fileMetaIt = fileMetadata->beginMeta(), end = fileMetadata->endMeta();
+		     fileMetaIt != end; ++fileMetaIt)
+		{
+			/* Resolve file- and grid-level metadata name conflictsin favor of
+			 * the grid-level metadata. */
+			if (openvdb::Metadata::Ptr meta = fileMetaIt->second) {
+				const auto name = fileMetaIt->first;
+
+				if (!(*grid)[name]) {
+					grid->insertMeta(name, *meta);
+				}
+			}
+		}
+
+		build_vdb_prim(m_collection, grid);
 	}
-#endif
 
-	const auto gridname = eval_string("grid_name");
-
-	if (gridname.size() == 0 || !file.hasGrid(gridname)) {
-		setOutputCollection("VDB", nullptr);
-		std::stringstream ss;
-		ss << "Cannot lookup \'" << gridname << "\' in file.\n";
-		this->add_warning(ss.str());
-		return;
-	}
-
-	auto grid = file.readGrid(gridname);
-
-	file.close();
-
-	build_vdb_prim(m_collection, grid);
+    file.close();
 }
 
 extern "C" {
