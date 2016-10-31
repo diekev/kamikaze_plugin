@@ -96,6 +96,8 @@ set(KAMIKAZE_OPENVDB_LIBS
 )
 
 set(NODE_SRC
+	node_openvdb_advect_points.cc
+	node_openvdb_analysis.cc
 	node_openvdb_create.cc
 	node_openvdb_clip.cc
 	node_openvdb_combine.cc
