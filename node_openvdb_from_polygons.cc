@@ -151,7 +151,7 @@ bool NodeFromPolygons::update_properties()
     const bool unsignedDist = eval_bool("unsignedDist");
 
     // Voxel size or voxel count menu
-    const bool countMenu = (eval_bool("sizeOrCount") != VOXEL_WORLD);
+	const bool countMenu = (eval_enum("sizeOrCount") != VOXEL_WORLD);
     set_prop_visible("voxelSize", !countMenu && !refexists);
     set_prop_visible("voxelCount", countMenu && !refexists);
 
