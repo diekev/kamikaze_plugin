@@ -340,6 +340,7 @@ void VDBVolume::loadShader()
 		params.add_uniform("MVP");
 		params.add_uniform("N");
 		params.add_uniform("for_outline");
+		params.add_uniform("color");
 
 		m_renderbuffer->set_shader_params(params);
 	}
@@ -471,6 +472,11 @@ void VDBVolume::render(const ViewerContext &context)
 	}
 
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
+		ego::Program *program = m_renderbuffer->program();
+		program->enable();
+		program->uniform("color", 1.0f, 1.0f, 1.0f);
+		program->disable();
+
 		m_renderbuffer->render(context);
 	}
 	else {
