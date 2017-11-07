@@ -29,7 +29,8 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Platonic";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Platonic";
+static constexpr auto AIDE_OPERATEUR = "";
 
 enum {
 	PLATONIC_SPHERE = 0,
@@ -40,18 +41,20 @@ enum {
 	PLATONIC_ICOSA  = 5,
 };
 
-class NodePlatonic : public VDBNode {
+class NodePlatonic : public OperateurOpenVDB {
 public:
-	NodePlatonic();
+	NodePlatonic(Noeud *noeud, const Context &contexte);
 	~NodePlatonic() = default;
 
-	void process() override;
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodePlatonic::NodePlatonic()
-    : VDBNode(NODE_NAME)
+NodePlatonic::NodePlatonic(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addOutput("VDB");
+	sorties(1);
 
 	EnumProperty platonic_enum;
 	platonic_enum.insert("Sphere",       PLATONIC_SPHERE);
@@ -82,7 +85,7 @@ NodePlatonic::NodePlatonic()
 	set_prop_default_value_vec3(glm::vec3{0.0f, 0.0f, 0.0f});
 }
 
-void NodePlatonic::process()
+void NodePlatonic::execute(const Context &contexte, double temps)
 {
 	const auto voxel_size = eval_float("voxel_size");
 	const auto half_width = eval_float("half_width");
@@ -120,14 +123,18 @@ void NodePlatonic::process()
 			break;
 	}
 
+	m_collection->free_all();
 	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodePlatonic);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodePlatonic>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

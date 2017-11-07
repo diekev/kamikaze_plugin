@@ -26,7 +26,8 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB MetaData";
+static constexpr auto NOM_OPERATEUR = "OpenVDB MetaData";
+static constexpr auto AIDE_OPERATEUR = "";
 
 #define set_class_str "set_class"
 #define class_str "class"
@@ -43,21 +44,24 @@ static constexpr auto NODE_NAME = "OpenVDB MetaData";
 #define set_float16_str "set_float16"
 #define float16_str "write_float16"
 
-class NodeOpenVDBMetaData : public VDBNode {
+class NodeOpenVDBMetaData : public OperateurOpenVDB {
 public:
-	NodeOpenVDBMetaData();
+	NodeOpenVDBMetaData(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t /*index*/) override { return "input"; }
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
 	bool update_properties() override;
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 };
 
 
-NodeOpenVDBMetaData::NodeOpenVDBMetaData()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBMetaData::NodeOpenVDBMetaData(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addOutput("output");
+	entrees();
+	sorties();
 
 	add_prop(set_class_str, "Set Class", property_type::prop_bool);
 	set_prop_default_value_bool(false);
@@ -131,7 +135,7 @@ bool NodeOpenVDBMetaData::update_properties()
 	return true;
 }
 
-void NodeOpenVDBMetaData::process()
+void NodeOpenVDBMetaData::execute(const Context &contexte, double temps)
 {
 	/* Get UI parameter values. */
 	const auto set_class = eval_bool(set_class_str);
@@ -148,6 +152,8 @@ void NodeOpenVDBMetaData::process()
 
 	const auto set_world = eval_bool(set_world_str);
 	const auto world = eval_bool(world_str);
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	/* Set metadatas to the volume grids in the collection. */
 	for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
@@ -180,9 +186,12 @@ void NodeOpenVDBMetaData::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBMetaData);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBMetaData>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

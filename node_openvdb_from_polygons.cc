@@ -32,14 +32,26 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB From Polygons";
+static constexpr auto NOM_OPERATEUR = "OpenVDB From Polygons";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeFromPolygons : public VDBNode {
+class NodeFromPolygons : public OperateurOpenVDB {
 public:
-	NodeFromPolygons();
+	NodeFromPolygons(Noeud *noeud, const Context &contexte);
 	~NodeFromPolygons() = default;
 
-	void process() override;
+	const char *nom_entree(size_t index) override
+	{
+		if (index == 0) {
+			return "input";
+		}
+
+		return "reference VDB";
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 };
 
@@ -51,12 +63,11 @@ enum {
 	VOXEL_AXIS_LONGEST = 4,
 };
 
-NodeFromPolygons::NodeFromPolygons()
-    : VDBNode(NODE_NAME)
+NodeFromPolygons::NodeFromPolygons(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addInput("reference VDB");
-	addOutput("output");
+	entrees(2);
+	sorties(1);
 
 	add_prop("distanceField", "Output Distance Field", property_type::prop_bool);
 	set_prop_default_value_bool(true);
@@ -144,7 +155,7 @@ NodeFromPolygons::NodeFromPolygons()
 
 bool NodeFromPolygons::update_properties()
 {
-	const auto refexists = (getInputCollection("reference VDB") != nullptr);
+	const auto refexists = entree(1)->est_connectee();
 
 	// Conversion
     const bool wsUnits = eval_bool("worldSpaceUnits");
@@ -152,13 +163,13 @@ bool NodeFromPolygons::update_properties()
 
     // Voxel size or voxel count menu
 	const bool countMenu = (eval_enum("sizeOrCount") != VOXEL_WORLD);
-    set_prop_visible("voxelSize", !countMenu && !refexists);
+	set_prop_visible("voxel_size", !countMenu && !refexists);
     set_prop_visible("voxelCount", countMenu && !refexists);
 
-    set_prop_visible("interiorBandWidth", !wsUnits);
-    set_prop_visible("exteriorBandWidth", !wsUnits);
-    set_prop_visible("interiorBandWidthWS", wsUnits);
-    set_prop_visible("exteriorBandWidthWS", wsUnits);
+	set_prop_visible("interior_band", !wsUnits);
+	set_prop_visible("exterior_band", !wsUnits);
+	set_prop_visible("interior_band_ws", wsUnits);
+	set_prop_visible("exterior_band_ws", wsUnits);
 
     set_prop_visible("fillInterior", !unsignedDist);
 
@@ -170,11 +181,13 @@ bool NodeFromPolygons::update_properties()
 	return true;
 }
 
-void NodeFromPolygons::process()
+void NodeFromPolygons::execute(const Context &contexte, double temps)
 {
 	const auto voxel_size = eval_float("voxel_size");
 	const auto int_band = eval_int("interior_band");
 	const auto ext_band = eval_int("exterior_band");
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	std::vector<Primitive *> converted_prims;
 
@@ -223,9 +236,12 @@ void NodeFromPolygons::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeFromPolygons);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeFromPolygons>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

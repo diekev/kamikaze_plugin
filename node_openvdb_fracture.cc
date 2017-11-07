@@ -38,14 +38,30 @@
 #include "util_string.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Fracture";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Fracture";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBFracture : public VDBNode {
+class NodeOpenVDBFracture : public OperateurOpenVDB {
 public:
-	NodeOpenVDBFracture();
+	NodeOpenVDBFracture(Noeud *noeud, const Context &contexte);
 	~NodeOpenVDBFracture() = default;
 
-	void process() override;
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "input";
+			case 1:
+				return "cutters";
+			case 2:
+				return "instance points (optional)";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 
 	template <typename GridType>
@@ -69,13 +85,11 @@ enum {
 	FRACTURE_VIZ_NEW  = 2,
 };
 
-NodeOpenVDBFracture::NodeOpenVDBFracture()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBFracture::NodeOpenVDBFracture(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addInput("cutters");
-	addInput("instance points (optional)");
-	addOutput("output");
+	entrees(3);
+	sorties(1);
 
 	add_prop("separate_cutters", "Separate Cutters", property_type::prop_bool);
 	set_prop_default_value_bool(false);
@@ -119,7 +133,7 @@ NodeOpenVDBFracture::NodeOpenVDBFracture()
 
 bool NodeOpenVDBFracture::update_properties()
 {
-    const bool has_instance_points = (getInputCollection("instance points (optional)") != nullptr);
+	const bool has_instance_points = entree(2)->est_connectee();
     const bool multiple_cutters = eval_bool("separate_cutters");
     const bool randomize_rotation =eval_bool("randomize_cutter");
 
@@ -132,10 +146,12 @@ bool NodeOpenVDBFracture::update_properties()
     return true;
 }
 
-void NodeOpenVDBFracture::process()
+void NodeOpenVDBFracture::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
     /* Validate input. */
-	const auto cutter_collection = getInputCollection("cutters");
+	const auto cutter_collection = entree(1)->requiers_collection(nullptr, contexte, temps);
 
     if (cutter_collection == nullptr || cutter_collection->primitives().empty()) {
         /* All good, nothing to worry about with no cutting objects! */
@@ -176,7 +192,7 @@ void NodeOpenVDBFracture::process()
 		ss << join(non_level_sets, ", ");
 		ss << "'.\n";
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
     }
 
     if (!non_linear.empty()) {
@@ -186,11 +202,11 @@ void NodeOpenVDBFracture::process()
 		ss << join(non_linear, ", ");
 		ss << "' because they don't have a linear/affine transform.\n";
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
     }
 
     if (!grids.empty()) {
-		const auto instance_collection = getInputCollection("instance points (optional)");
+		const auto instance_collection = entree(2)->requiers_collection(nullptr, contexte, temps);
 
         if (grids.front()->isType<openvdb::FloatGrid>()) {
             do_fracture<openvdb::FloatGrid>(grids, cutter_collection, instance_collection);
@@ -199,14 +215,14 @@ void NodeOpenVDBFracture::process()
             do_fracture<openvdb::DoubleGrid>(grids, cutter_collection, instance_collection);
         }
 		else {
-			this->add_warning("Unsupported grid type.");
+			this->ajoute_avertissement("Unsupported grid type.");
         }
 
 		/* Remove the processed primitives from the collection. */
 		m_collection->destroy(converted_prims);
     }
 	else {
-		this->add_warning("No VDB grids to fracture.");
+		this->ajoute_avertissement("No VDB grids to fracture.");
     }
 }
 
@@ -250,7 +266,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		ss << join(bad_transform_list, ", ");
 		ss << "' because they don't match the transform of the first grid.\n";
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
     }
 
     if (!bad_background_list.empty()) {
@@ -260,7 +276,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		ss << join(bad_background_list, ", ");
 		ss << "' because they don't match the background value of the first grid.\n";
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
     }
 
     if (!bad_type_list.empty()) {
@@ -270,7 +286,7 @@ std::list<typename GridType::Ptr> NodeOpenVDBFracture::get_residuals(
 		ss << join(bad_type_list, ", ");
 		ss << "' because they don't have the same data type as the first grid.\n";
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
     }
 
 	return residuals;
@@ -455,9 +471,12 @@ void NodeOpenVDBFracture::export_fragments(std::list<typename GridType::Ptr> &gr
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBFracture);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBFracture>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

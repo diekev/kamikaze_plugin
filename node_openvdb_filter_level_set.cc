@@ -28,14 +28,28 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Filter Level Set";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Filter Level Set";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeFilterLevelSet : public VDBNode {
+class NodeFilterLevelSet : public OperateurOpenVDB {
 public:
-	NodeFilterLevelSet();
+	NodeFilterLevelSet(Noeud *noeud, const Context &contexte);
 	~NodeFilterLevelSet() = default;
 
-	void process() override;
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "VDB";
+			case 1:
+				return "VDB Mask";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
 enum {
@@ -55,12 +69,11 @@ enum {
 	LS_FILTER_OFFSET,
 };
 
-NodeFilterLevelSet::NodeFilterLevelSet()
-    : VDBNode(NODE_NAME)
+NodeFilterLevelSet::NodeFilterLevelSet(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addInput("VDB Mask");
-	addOutput("VDB");
+	entrees(2);
+	sorties(1);
 
 	EnumProperty type_enum;
 	type_enum.insert("Median",         LS_FILTER_MEDIAN);
@@ -96,9 +109,11 @@ NodeFilterLevelSet::NodeFilterLevelSet()
 	set_prop_default_value_float(1.0f);
 }
 
-void NodeFilterLevelSet::process()
+void NodeFilterLevelSet::execute(const Context &contexte, double temps)
 {
 	using namespace openvdb;
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	const auto type = eval_enum("filter_type");
 	const auto accuracy = eval_enum("accuracy");
@@ -116,7 +131,7 @@ void NodeFilterLevelSet::process()
 		auto ls_grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 
 		FloatGrid *mask = nullptr;
-		auto mask_prim = getInputCollection("VDB Mask");
+		auto mask_prim = entree(1)->requiers_collection(nullptr, contexte, temps);
 
 		if (mask_prim) {
 			auto mask_ls = static_cast<VDBVolume *>(mask_prim->primitives()[0]);
@@ -176,9 +191,12 @@ void NodeFilterLevelSet::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeFilterLevelSet);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeFilterLevelSet>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

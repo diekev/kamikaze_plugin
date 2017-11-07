@@ -171,24 +171,35 @@ static inline auto create_point_mask_grid(const openvdb::math::Transform &xform,
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB From Particles";
+static constexpr auto NOM_OPERATEUR = "OpenVDB From Particles";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBFromParticles : public VDBNode {
+class NodeOpenVDBFromParticles : public OperateurOpenVDB {
 public:
-	NodeOpenVDBFromParticles();
+	NodeOpenVDBFromParticles(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t index) override
+	{
+		if (index == 0) {
+			return "Points";
+		}
+
+		return "reference";
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
 
 	void convert(openvdb::FloatGrid::Ptr grid, ParticleList &list);
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 };
 
-NodeOpenVDBFromParticles::NodeOpenVDBFromParticles()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBFromParticles::NodeOpenVDBFromParticles(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("Points");
-	addInput("reference");
-	addOutput("VDB");
+	entrees(2);
+	sorties(1);
 
 	/* TODO: toggle for world space units */
 
@@ -315,7 +326,7 @@ bool NodeOpenVDBFromParticles::update_properties()
     set_prop_visible("bounding_limit", use_mask);
     set_prop_visible("mask_name", use_mask);
 
-    const auto has_ref_input = (this->getInputCollection("reference") != nullptr);
+	const auto has_ref_input = entree(1)->est_connectee();
     set_prop_visible("merge_reference", has_ref_input);
     set_prop_visible("voxel_size", !has_ref_input);
 
@@ -361,7 +372,7 @@ void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleLis
 			ss << "Ignored " << raster.getMinCount()
 			   << " small particle(s) (hint: change min_radius in Voxels)";
 
-			this->add_warning(ss.str().c_str());
+			this->ajoute_avertissement(ss.str().c_str());
 		}
 
 		if (raster.getMaxCount() > 0) {
@@ -370,21 +381,23 @@ void NodeOpenVDBFromParticles::convert(openvdb::FloatGrid::Ptr grid, ParticleLis
 			ss << "Ignored " << raster.getMaxCount()
 			   << " large particle(s) (hint: change min_radius in Voxels)";
 
-			this->add_warning(ss.str().c_str());
+			this->ajoute_avertissement(ss.str().c_str());
 		}
     }
 }
 
-void NodeOpenVDBFromParticles::process()
+void NodeOpenVDBFromParticles::execute(const Context &contexte, double temps)
 {
 	openvdb::util::NullInterrupter boss;
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	auto voxel_size = eval_float("voxel_size");
 
 	if (voxel_size < 1e-5f) {
         std::ostringstream ostr;
         ostr << "The voxel size ("<< voxel_size << ") is too small.";
-        this->add_warning(ostr.str());
+		this->ajoute_avertissement(ostr.str());
         return;
     }
 
@@ -394,7 +407,7 @@ void NodeOpenVDBFromParticles::process()
 	const auto output_attribute_grid = false; // eval_bool("attrList"); /* TODO */
 
 	if (!output_fog_volume_grid && !output_level_set && !output_attribute_grid) {
-         this->add_warning("No output selected");
+		 this->ajoute_avertissement("No output selected");
          return;
     }
 
@@ -417,7 +430,7 @@ void NodeOpenVDBFromParticles::process()
 	PrimitiveCollection tmp_collection(m_collection->factory());
 	std::vector<Primitive *> to_destroy;
 
-	auto reference_collection = getInputCollection("reference");
+	auto reference_collection = entree(1)->requiers_collection(nullptr, contexte, temps);
 	const auto reference = (reference_collection != nullptr);
 
 	for (auto prim : primitive_iterator(m_collection, PrimPoints::id)) {
@@ -442,7 +455,7 @@ void NodeOpenVDBFromParticles::process()
 					background =
                         openvdb::gridConstPtrCast<openvdb::FloatGrid>(ref_prim->getGridPtr())->background();
 
-					this->add_warning("Note: Matching reference level set half-band width "
+					this->ajoute_avertissement("Note: Matching reference level set half-band width "
 					                  " and background value. (UI half-band parameter is ignored.)");
 				}
 
@@ -452,17 +465,17 @@ void NodeOpenVDBFromParticles::process()
                             ref_prim->getGrid().deepCopyGrid());
 
                         if (!outputGrid) {
-                            this->add_warning("Cannot write into the selected"
+							this->ajoute_avertissement("Cannot write into the selected"
 							                  " reference grid because it is not a float grid.");
                         }
                     }
 					else {
-                        this->add_warning("Can only write directly into a level set grid.");
+						this->ajoute_avertissement("Can only write directly into a level set grid.");
                     }
                 }
 			}
 			else {
-				this->add_warning("Second input has no VDB primitives.");
+				this->ajoute_avertissement("Second input has no VDB primitives.");
 			}
 		}
 
@@ -482,13 +495,13 @@ void NodeOpenVDBFromParticles::process()
 
 		if (do_sphere_conversion) {
             if ((eval_bool("velocity_trails")) && !paList.hasVelocity()) {
-                this->add_warning("Velocity trails require a velocity point attribute named 'velocity' of vec3 type.");
+				this->ajoute_avertissement("Velocity trails require a velocity point attribute named 'velocity' of vec3 type.");
             }
 
             if (output_attribute_grid) {
 				/* TODO. */
                 //this->convertWithAttributes(outputGrid, paList, *ptGeo);
-				this->add_warning("Attribute transfer is not supported yet!");
+				this->ajoute_avertissement("Attribute transfer is not supported yet!");
             }
 			else {
                 this->convert(outputGrid, paList);
@@ -581,9 +594,12 @@ void NodeOpenVDBFromParticles::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBFromParticles);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBFromParticles>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

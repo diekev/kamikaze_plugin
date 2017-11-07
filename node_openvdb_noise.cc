@@ -116,15 +116,27 @@ struct NoiseSettings {
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Noise";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Noise";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeNoise : public VDBNode {
+class NodeNoise : public OperateurOpenVDB {
 public:
-	NodeNoise();
+	NodeNoise(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t index) override
+	{
+		if (index == 0) {
+			return "input grids";
+		}
+
+		return "mask (optional)";
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
 	bool update_properties() override;
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 
 	template<typename GridType>
 	void apply_noise(openvdb::GridBase &grid,
@@ -133,12 +145,11 @@ public:
 	                 const openvdb::GridBase *mask) const;
 };
 
-NodeNoise::NodeNoise()
-    : VDBNode(NODE_NAME)
+NodeNoise::NodeNoise(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input grids");
-	addInput("mask (optional)");
-	addOutput("output");
+	entrees(2);
+	sorties(1);
 
 	/* ------------------------- Noise parameters. -------------------------- */
 
@@ -204,7 +215,7 @@ NodeNoise::NodeNoise()
 
 bool NodeNoise::update_properties()
 {
-	const auto has_mask = (getInputCollection("mask (optional)") != nullptr);
+	const auto has_mask = entree(1)->est_connectee();
 
 	set_prop_visible("mask_mode", has_mask);
 	set_prop_visible("threshold", has_mask);
@@ -213,8 +224,10 @@ bool NodeNoise::update_properties()
 	return true;
 }
 
-void NodeNoise::process()
+void NodeNoise::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	/* ------- Evaluate the FractalBoltzman noise parameters from UI. ------- */
 
     FractalBoltzmanGenerator fbGenerator(eval_float("frequency"),
@@ -238,7 +251,7 @@ void NodeNoise::process()
 	/* ------------------------- Get the mask grid. ------------------------- */
 
     const openvdb::GridBase *maskGrid = nullptr;
-    const auto refGdp = getInputCollection("mask (optional)");
+	const auto refGdp = entree(1)->requiers_collection(nullptr, contexte, temps);
 
     if (refGdp != nullptr) {
 		for (auto &prim : primitive_iterator(refGdp, VDBVolume::id)) {
@@ -248,7 +261,7 @@ void NodeNoise::process()
 			if (maskGrid != nullptr) {
 				std::ostringstream ostr;
 	            ostr << "Found more than one grid in the mask group; the first grid will be used.";
-	            this->add_warning(ostr.str());
+				this->ajoute_avertissement(ostr.str());
 				break;
 			}
 
@@ -277,7 +290,7 @@ void NodeNoise::process()
             std::stringstream ss;
             ss << "VDB primitive " << vdbPrim->name()
                 << " was skipped because it is not a scalar grid.";
-            this->add_warning(ss.str());
+			this->ajoute_avertissement(ss.str());
             continue;
         }
 	}
@@ -444,9 +457,12 @@ void NodeNoise::apply_noise(openvdb::GridBase &grid,
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeNoise);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeNoise>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

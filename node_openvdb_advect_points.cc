@@ -425,25 +425,39 @@ public:
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Advect Points";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Advect Points";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBAdvectPoints : public VDBNode {
+class NodeOpenVDBAdvectPoints : public OperateurOpenVDB {
 public:
-	NodeOpenVDBAdvectPoints();
+	NodeOpenVDBAdvectPoints(Noeud *noeud, const Context &contexte);
 	~NodeOpenVDBAdvectPoints() = default;
 
-	void process() override;
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "input";
+			case 1:
+				return "velocity VDB (optional)";
+			case 2:
+				return "closest point VDB (optional)";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
-	bool evalAdvectionParms(AdvectionParms &parms);
+	bool evalAdvectionParms(AdvectionParms &parms, const Context &contexte, double temps);
 };
 
-NodeOpenVDBAdvectPoints::NodeOpenVDBAdvectPoints()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBAdvectPoints::NodeOpenVDBAdvectPoints(Noeud *noeud, const Context &contexte)
+	: OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addInput("velocity VDB (optional)");
-	addInput("closest point VDB (optional)");
-	addOutput("output");
+	entrees(3);
+	sorties(1);
 
     /* Propagation scheme. */
     {
@@ -514,10 +528,12 @@ bool NodeOpenVDBAdvectPoints::update_properties()
     return true;
 }
 
-void NodeOpenVDBAdvectPoints::process()
+void NodeOpenVDBAdvectPoints::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	AdvectionParms parms(m_collection);
-	if (!evalAdvectionParms(parms)) {
+	if (!evalAdvectionParms(parms, contexte, temps)) {
 		return;
 	}
 
@@ -544,36 +560,36 @@ void NodeOpenVDBAdvectPoints::process()
     }
 
 	if (boss.wasInterrupted()) {
-		this->add_warning("Processing was interrupted!");
+		this->ajoute_avertissement("Processing was interrupted!");
 	}
 
     boss.end();
 }
 
-bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
+bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms, const Context &contexte, double temps)
 {
 	primitive_iterator pit(m_collection, PrimPoints::id);
     parms.mPointGeo = static_cast<PrimPoints *>(*pit);
 
     if (!parms.mPointGeo) {
-        this->add_warning("Missing point input");
+		this->ajoute_avertissement("Missing point input");
         return false;
     }
 
     parms.mPropagationType = static_cast<PropagationType>(eval_int("propagation"));
 
     if (parms.mPropagationType == PROPAGATION_TYPE_UNKNOWN) {
-        this->add_warning("Unknown propargation scheme");
+		this->ajoute_avertissement("Unknown propargation scheme");
         return false;
     }
 
     if (parms.mPropagationType == PROPAGATION_TYPE_ADVECTION ||
         parms.mPropagationType == PROPAGATION_TYPE_CONSTRAINED_ADVECTION) {
 
-		const PrimitiveCollection *velGeo = getInputCollection("velocity VDB (optional)");
+		const PrimitiveCollection *velGeo = entree(1)->requiers_collection(nullptr, contexte, temps);
 
         if (!velGeo) {
-			this->add_warning("Missing velocity grid input");
+			this->ajoute_avertissement("Missing velocity grid input");
             return false;
         }
 
@@ -581,12 +597,12 @@ bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
         parms.mVelPrim = static_cast<VDBVolume *>(*it);
 
         if (!parms.mVelPrim) {
-            this->add_warning("Missing velocity grid");
+			this->ajoute_avertissement("Missing velocity grid");
             return false;
         }
 
         if (parms.mVelPrim->storage() != GRID_STORAGE_VEC3S) {
-            this->add_warning("Expected velocity grid to be of type Vec3f");
+			this->ajoute_avertissement("Expected velocity grid to be of type Vec3f");
             return false;
         }
 
@@ -605,7 +621,7 @@ bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
         parms.mIntegrationType = static_cast<IntegrationType>(eval_enum("integration"));
 
         if (parms.mIntegrationType == INTEGRATION_TYPE_UNKNOWN) {
-            this->add_warning("Unknown integration scheme");
+			this->ajoute_avertissement("Unknown integration scheme");
             return false;
         }
     }
@@ -613,10 +629,10 @@ bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
     if (parms.mPropagationType == PROPAGATION_TYPE_PROJECTION ||
         parms.mPropagationType == PROPAGATION_TYPE_CONSTRAINED_ADVECTION)
 	{
-        const PrimitiveCollection *cptGeo = getInputCollection("closest point VDB (optional)");
+		const PrimitiveCollection *cptGeo = entree(2)->requiers_collection(nullptr, contexte, temps);;
 
         if (!cptGeo) {
-            this->add_warning("Missing closest point grid input");
+			this->ajoute_avertissement("Missing closest point grid input");
             return false;
         }
 
@@ -624,12 +640,12 @@ bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
         parms.mCptPrim = static_cast<VDBVolume *>(*it);
 
         if (!parms.mCptPrim) {
-            this->add_warning("Missing closest point grid");
+			this->ajoute_avertissement("Missing closest point grid");
             return false;
         }
 
         if (parms.mCptPrim->storage() != GRID_STORAGE_VEC3S) {
-            this->add_warning("Expected closest point grid to be of type Vec3f");
+			this->ajoute_avertissement("Expected closest point grid to be of type Vec3f");
             return false;
         }
 
@@ -643,9 +659,12 @@ bool NodeOpenVDBAdvectPoints::evalAdvectionParms(AdvectionParms& parms)
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBAdvectPoints);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBAdvectPoints>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

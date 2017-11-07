@@ -38,21 +38,24 @@ static auto end(const openvdb::io::File &file)
 	return file.endName();
 }
 
-static constexpr auto NODE_NAME = "OpenVDB Read";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Read";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBRead : public VDBNode {
+class NodeOpenVDBRead : public OperateurOpenVDB {
 
 public:
-	NodeOpenVDBRead();
+	NodeOpenVDBRead(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 };
 
-NodeOpenVDBRead::NodeOpenVDBRead()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBRead::NodeOpenVDBRead(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addOutput("output");
+	sorties(1);
 
 	openvdb::initialize();
 
@@ -122,8 +125,10 @@ bool NodeOpenVDBRead::update_properties()
 	return true;
 }
 
-void NodeOpenVDBRead::process()
+void NodeOpenVDBRead::execute(const Context &contexte, double temps)
 {
+	m_collection->free_all();
+
 	const auto readMetadataOnly = eval_bool("metadata_only");
 	const auto filename = eval_string("filepath");
 	const auto grids = eval_string("grids");
@@ -146,7 +151,7 @@ void NodeOpenVDBRead::process()
 		}
 	}
 	catch (const std::exception &e) {
-		this->add_warning(e.what());
+		this->ajoute_avertissement(e.what());
 		return;
 	}
 
@@ -195,9 +200,12 @@ void NodeOpenVDBRead::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBRead);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBRead>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

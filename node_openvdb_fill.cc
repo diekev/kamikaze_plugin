@@ -27,7 +27,8 @@
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Fill";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Fill";
+static constexpr auto AIDE_OPERATEUR = "";
 
 enum {
 	INDEX = 0,
@@ -35,11 +36,24 @@ enum {
 	GEOM  = 2,
 };
 
-class NodeFill : public VDBNode {
+class NodeFill : public OperateurOpenVDB {
 public:
-	NodeFill();
+	NodeFill(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "input";
+			case 1:
+				return "bouding geom (optional)";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 };
 
@@ -143,12 +157,11 @@ public:
     }
 };
 
-NodeFill::NodeFill()
-    : VDBNode(NODE_NAME)
+NodeFill::NodeFill(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addInput("bouding geom (optional)");
-	addOutput("output");
+	entrees(2);
+	sorties(1);
 
 	EnumProperty mode_enum;
 	mode_enum.insert("Min and Max in Index Space", INDEX);
@@ -203,8 +216,10 @@ bool NodeFill::update_properties()
 	return true;
 }
 
-void NodeFill::process()
+void NodeFill::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto mode = eval_int("mode");
 	const auto value = eval_vec3("value");
 	const auto min = eval_vec3("min");
@@ -232,7 +247,7 @@ void NodeFill::process()
 		case GEOM:
 		{
 			openvdb::BBoxd bbox;
-			const auto ref_coll = getInputCollection("bouding geom (optional)");
+			const auto ref_coll = entree(1)->requiers_collection(nullptr, contexte, temps);;
 
 			if (ref_coll != nullptr) {
 				auto iter = primitive_iterator(ref_coll);
@@ -273,9 +288,12 @@ void NodeFill::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeFill);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeFill>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

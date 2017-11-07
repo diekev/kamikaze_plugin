@@ -18,32 +18,32 @@ endif()
 
 set(_ego_SEARCH_DIRS
 	${EGO_ROOT_DIR}
-	/opt/lib/ego
+	/opt/lib/girafeenfeu
 )
 
 find_path(EGO_INCLUDE_DIR
 	NAMES
-		ego/bufferobject.h
+	    ego/bufferobject.h
 	HINTS
-		${_ego_SEARCH_DIRS}
+	    ${_ego_SEARCH_DIRS}
 	PATH_SUFFIXES
-		include
+	    include/girafeenfeu
 )
 
 find_library(EGO_LIBRARY
 	NAMES
-		ego
+	    ego
 	HINTS
-		${_ego_SEARCH_DIRS}
+	    ${_ego_SEARCH_DIRS}
 	PATH_SUFFIXES
-		lib64 lib
-	)
+	    lib64 lib
+)
 
 # handle the QUIETLY and REQUIRED arguments and set EGO_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(EGO DEFAULT_MSG
-		EGO_LIBRARY EGO_INCLUDE_DIR)
+	    EGO_LIBRARY EGO_INCLUDE_DIR)
 
 if(EGO_FOUND)
 	set(EGO_LIBRARIES ${EGO_LIBRARY})

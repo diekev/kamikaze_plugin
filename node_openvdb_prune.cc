@@ -28,7 +28,8 @@
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Prune";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Prune";
+static constexpr auto AIDE_OPERATEUR = "";
 
 enum {
 	VALUE = 0,
@@ -36,12 +37,15 @@ enum {
 	LEVEL_SET = 2,
 };
 
-class NodePrune : public VDBNode {
+class NodePrune : public OperateurOpenVDB {
 
 public:
-	NodePrune();
+	NodePrune(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
 class PruneOp {
@@ -73,11 +77,11 @@ public:
     }
 };
 
-NodePrune::NodePrune()
-    : VDBNode(NODE_NAME)
+NodePrune::NodePrune(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addOutput("VDB");
+	entrees(1);
+	sorties(1);
 
 	EnumProperty mode_enum;
 	mode_enum.insert("Value",     VALUE);
@@ -91,8 +95,10 @@ NodePrune::NodePrune()
 	set_prop_min_max(0.0f, 10.0f);
 }
 
-void NodePrune::process()
+void NodePrune::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto mode = eval_int("mode");
 	const auto tolerance = eval_float("tolerance");
 
@@ -106,9 +112,12 @@ void NodePrune::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodePrune);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodePrune>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

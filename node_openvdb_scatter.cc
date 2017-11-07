@@ -35,22 +35,26 @@
 
 #include "util_string.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Scatter";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Scatter";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBScatter : public VDBNode {
+class NodeOpenVDBScatter : public OperateurOpenVDB {
 public:
-	NodeOpenVDBScatter();
+	NodeOpenVDBScatter(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+	const char *nom_sortie(size_t /*index*/) override { return "Points"; }
 
 	bool update_properties() override;
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeOpenVDBScatter::NodeOpenVDBScatter()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBScatter::NodeOpenVDBScatter(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addOutput("Points");
+	entrees(1);
+	sorties(1);
 
 	add_prop("keep", "Keep input VDB grids", property_type::prop_bool);
 	set_prop_default_value_bool(false);
@@ -165,7 +169,7 @@ bool process_sdf_interior(const openvdb::GridBase &ref_grid, int storage, OpType
     return false;
 }
 
-void NodeOpenVDBScatter::process()
+void NodeOpenVDBScatter::execute(const Context &contexte, double temps)
 {
 	const auto seed = eval_int("random_seed");
 	const auto mode = eval_enum("mode");
@@ -177,6 +181,8 @@ void NodeOpenVDBScatter::process()
 	const auto verbose = eval_bool("verbose");
 	const auto spread = eval_float("spread");
 	const auto keep = eval_bool("keep");
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	std::vector<Primitive *> primitives;
 	primitives.reserve(m_collection->primitives().size());
@@ -287,7 +293,7 @@ void NodeOpenVDBScatter::process()
 
 	if (!empty_grids.empty()) {
 		std::string s = "The following grids were empty: " + join(empty_grids, ", ");
-        this->add_warning(s.c_str());
+		this->ajoute_avertissement(s.c_str());
 	}
 
 	if (!keep) {
@@ -301,9 +307,12 @@ void NodeOpenVDBScatter::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBScatter);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBScatter>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

@@ -26,21 +26,24 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Write";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Write";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeWrite : public VDBNode {
+class NodeWrite : public OperateurOpenVDB {
 
 public:
-	NodeWrite();
+	NodeWrite(Noeud *noeud, const Context &contexte);
 	~NodeWrite() = default;
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeWrite::NodeWrite()
-    : VDBNode(NODE_NAME)
+NodeWrite::NodeWrite(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
+	entrees(1);
 
 	EnumProperty compression_enum;
 	compression_enum.insert("ZIP", 0);
@@ -53,8 +56,10 @@ NodeWrite::NodeWrite()
 	add_prop("half_floats", "Save as Half floats", property_type::prop_bool);
 }
 
-void NodeWrite::process()
+void NodeWrite::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto filename = eval_string("File Path");
 
 	if (filename.empty()) {
@@ -99,9 +104,12 @@ void NodeWrite::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeWrite);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeWrite>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

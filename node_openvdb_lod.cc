@@ -130,15 +130,16 @@ enum {
 	LOD_PYRAMID = 2,
 };
 
-static constexpr auto NODE_NAME = "OpenVDB LOD";
+static constexpr auto NOM_OPERATEUR = "OpenVDB LOD";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBLOD : public VDBNode {
+class NodeOpenVDBLOD : public OperateurOpenVDB {
 public:
-	NodeOpenVDBLOD()
-	    : VDBNode(NODE_NAME)
+	NodeOpenVDBLOD(Noeud *noeud, const Context &contexte)
+	    : OperateurOpenVDB(noeud, contexte)
 	{
-		addInput("input");
-		addOutput("output");
+		entrees(1);
+		sorties(1);
 
 		EnumProperty lod_enum;
 		lod_enum.insert("Single Level", LOD_SINGLE);
@@ -171,6 +172,9 @@ public:
 		                 "Only available when a single Level is generated.");
 	}
 
+	const char *nom_entree(size_t /*index*/) override { return "input"; }
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
 	bool update_properties() override
 	{
 		const auto lod_mode = eval_int("mode");
@@ -183,11 +187,13 @@ public:
 		return true;
 	}
 
-	void process() override
+	void execute(const Context &contexte, double temps) override
 	{
 		std::vector<std::string> skipped;
 		std::vector<Primitive *> to_destroy;
 		openvdb::util::NullInterrupter boss;
+
+		entree(0)->requiers_collection(m_collection, contexte, temps);
 
 		const auto lod_mode = eval_int("mode");
 
@@ -222,7 +228,7 @@ public:
 			const auto step = range[2];
 
 			if (!is_valid_range(start, end, step)) {
-				this->add_warning("Invalid range, make sure that start <= end"
+				this->ajoute_avertissement("Invalid range, make sure that start <= end"
 				                  " and the step size is a positive number.");
 				return;
 			}
@@ -269,13 +275,13 @@ public:
 			}
 		}
 		else {
-			this->add_warning("Invalid LOD option.");
+			this->ajoute_avertissement("Invalid LOD option.");
 		}
 
 		m_collection->destroy(to_destroy);
 
 		if (!skipped.empty()) {
-			this->add_warning("Unable to process grid(s): " + join(skipped, ", "));
+			this->ajoute_avertissement("Unable to process grid(s): " + join(skipped, ", "));
 		}
 	}
 };
@@ -284,9 +290,12 @@ public:
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBLOD);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBLOD>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

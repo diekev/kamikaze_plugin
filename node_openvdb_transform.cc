@@ -30,20 +30,24 @@
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Transform";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Transform";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBTransform : public VDBNode {
+class NodeOpenVDBTransform : public OperateurOpenVDB {
 public:
-	NodeOpenVDBTransform();
+	NodeOpenVDBTransform(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeOpenVDBTransform::NodeOpenVDBTransform()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBTransform::NodeOpenVDBTransform(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addOutput("VDB");
+	entrees(1);
+	sorties(1);
 
 	add_prop("translate", "Translate", property_type::prop_vec3);
 	set_prop_min_max(-10.0f, 10.0f);
@@ -87,8 +91,10 @@ struct VectorTransformOp {
     }
 };
 
-void NodeOpenVDBTransform::process()
+void NodeOpenVDBTransform::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto translate = eval_vec3("translate");
     const auto rotate = eval_vec3("rotate");
     const auto pivot = eval_vec3("pivot");
@@ -141,9 +147,12 @@ void NodeOpenVDBTransform::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBTransform);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBTransform>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

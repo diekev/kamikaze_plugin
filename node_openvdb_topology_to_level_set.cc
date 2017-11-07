@@ -90,23 +90,27 @@ public:
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Topology To Level Set";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Topology To Level Set";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBTopologyToLevelSet : public VDBNode {
+class NodeOpenVDBTopologyToLevelSet : public OperateurOpenVDB {
 public:
-	NodeOpenVDBTopologyToLevelSet();
+	NodeOpenVDBTopologyToLevelSet(Noeud *noeud, const Context &contexte);
 	~NodeOpenVDBTopologyToLevelSet() = default;
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "input"; }
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override;
 
 	bool update_properties() override;
 };
 
-NodeOpenVDBTopologyToLevelSet::NodeOpenVDBTopologyToLevelSet()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBTopologyToLevelSet::NodeOpenVDBTopologyToLevelSet(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addOutput("output");
+	entrees(1);
+	sorties(1);
 
 	EnumProperty rename_items;
 	rename_items.insert("Keep Incoming VDB Names", NAME_KEEP);
@@ -165,8 +169,10 @@ bool NodeOpenVDBTopologyToLevelSet::update_properties()
 	return true;
 }
 
-void NodeOpenVDBTopologyToLevelSet::process()
+void NodeOpenVDBTopologyToLevelSet::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	PrimitiveCollection tmp_collection(m_collection->factory());
 	openvdb::util::NullInterrupter boss;
 
@@ -183,7 +189,7 @@ void NodeOpenVDBTopologyToLevelSet::process()
 	primitive_iterator iter(m_collection, VDBVolume::id);
 
     if (!iter.get()) {
-        this->add_warning("No VDB grids to process.");
+		this->ajoute_avertissement("No VDB grids to process.");
         return;
     }
 
@@ -204,9 +210,12 @@ void NodeOpenVDBTopologyToLevelSet::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBTopologyToLevelSet);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBTopologyToLevelSet>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

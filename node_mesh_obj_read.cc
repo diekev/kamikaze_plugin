@@ -23,12 +23,13 @@
  */
 
 #include <kamikaze/mesh.h>
-#include <kamikaze/nodes.h>
+#include <kamikaze/operateur.h>
 
 #include <fstream>
 #include <sstream>
 
-static constexpr auto NODE_NAME = "OBJ Reader";
+static constexpr auto NOM_OPERATEUR = "OBJ Reader";
+static constexpr auto AIDE_OPERATEUR = "";
 
 struct MeshInfo {
 	size_t num_verts = 0;
@@ -37,7 +38,7 @@ struct MeshInfo {
 	size_t num_polys = 0;
 };
 
-class NodeMeshOBJRead : public Node {
+class NodeMeshOBJRead : public Operateur {
 	std::vector<MeshInfo *> m_meshes_info;
 	size_t m_num_verts = 0;
 	size_t m_num_normals = 0;
@@ -45,23 +46,26 @@ class NodeMeshOBJRead : public Node {
 	size_t m_num_polys = 0;
 
 public:
-	NodeMeshOBJRead();
+	NodeMeshOBJRead(Noeud *noeud, const Context &contexte);
 
 	bool prereadObj(const std::string &filename);
 
-	void process() override;
+	const char *nom_sortie(size_t /*index*/) override { return "Mesh"; }
+
+	void execute(const Context &contexte, double temps) override;
+
 	void createMesh(PointList *points, int mesh_index, PolygonList *polys, Attribute *normals, MeshInfo *info, Mesh *mesh);
 };
 
-NodeMeshOBJRead::NodeMeshOBJRead()
-    : Node(NODE_NAME)
+NodeMeshOBJRead::NodeMeshOBJRead(Noeud *noeud, const Context &contexte)
+	: Operateur(noeud, contexte)
 {
-	addOutput("Mesh");
+	sorties(1);
 
 	add_prop("filename", "Filename", property_type::prop_input_file);
 }
 
-void NodeMeshOBJRead::process()
+void NodeMeshOBJRead::execute(const Context &/*contexte*/, double /*temps*/)
 {
 	const auto filename = eval_string("filename");
 
@@ -72,6 +76,8 @@ void NodeMeshOBJRead::process()
 	if (!prereadObj(filename)) {
 		return;
 	}
+
+	m_collection->free_all();
 
 	MeshInfo *info;
 	Mesh *mesh = nullptr;
@@ -292,9 +298,12 @@ bool NodeMeshOBJRead::prereadObj(const std::string &filename)
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("Mesh", NODE_NAME, NodeMeshOBJRead);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeMeshOBJRead>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "Mesh"));
 }
 
 }

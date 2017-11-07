@@ -116,16 +116,17 @@ public:
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Sort Points";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Sort Points";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBSortPoints : public VDBNode {
+class NodeOpenVDBSortPoints : public OperateurOpenVDB {
 
 public:
-	NodeOpenVDBSortPoints()
-	    : VDBNode(NODE_NAME)
+	NodeOpenVDBSortPoints(Noeud *noeud, const Context &contexte)
+	    : OperateurOpenVDB(noeud, contexte)
 	{
-		addInput("input");
-		addOutput("output");
+		entrees(1);
+		sorties(1);
 
 		add_prop("bin_size", "Bin Size", property_type::prop_float);
 		set_prop_default_value_float(1.0f);
@@ -135,8 +136,13 @@ public:
 
 	~NodeOpenVDBSortPoints() = default;
 
-	void process() override
+	const char *nom_entree(size_t /*index*/) override { return "input"; }
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override
 	{
+		entree(0)->requiers_collection(m_collection, contexte, temps);
+
 		PrimitiveCollection tmp_collection(m_collection->factory());
 
 	    const auto bin_size = eval_float("bin_size");
@@ -181,9 +187,12 @@ public:
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBSortPoints);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBSortPoints>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

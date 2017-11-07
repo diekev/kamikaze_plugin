@@ -30,22 +30,26 @@
 
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB To Polygons";
+static constexpr auto NOM_OPERATEUR = "OpenVDB To Polygons";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeToPolygons : public VDBNode {
+class NodeToPolygons : public OperateurOpenVDB {
 
 public:
-	NodeToPolygons();
+	NodeToPolygons(Noeud *noeud, const Context &contexte);
 	~NodeToPolygons() = default;
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+	const char *nom_sortie(size_t /*index*/) override { return "Mesh"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeToPolygons::NodeToPolygons()
-    : VDBNode(NODE_NAME)
+NodeToPolygons::NodeToPolygons(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addOutput("Mesh");
+	entrees(1);
+	sorties(1);
 
 	add_prop("iso_value", "Iso Value", property_type::prop_float);
 	set_prop_min_max(-1.0f, 1.0f);
@@ -56,8 +60,10 @@ NodeToPolygons::NodeToPolygons()
 	set_prop_tooltip("Determine how closely the isosurface is matched by the resulting mesh.");
 }
 
-void NodeToPolygons::process()
+void NodeToPolygons::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto iso_value = eval_float("iso_value");
 	const auto adaptivity = eval_float("adaptivity");
 
@@ -115,9 +121,12 @@ void NodeToPolygons::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeToPolygons);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeToPolygons>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

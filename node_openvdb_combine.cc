@@ -38,15 +38,29 @@
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Combine";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Combine";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBCombine : public VDBNode {
+class NodeOpenVDBCombine : public OperateurOpenVDB {
 public:
-	NodeOpenVDBCombine();
+	NodeOpenVDBCombine(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "input a";
+			case 1:
+				return "input b (optional)";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
 	bool update_properties() override;
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 
 	openvdb::GridBase::Ptr combineGrids(const int op,
 	                                    openvdb::GridBase::ConstPtr aGrid,
@@ -368,7 +382,7 @@ struct CombineOp {
 			catch (openvdb::TypeError&) {
 				std::stringstream ss;
 				ss << "skipped rebuild of level set grid " + src.getName() + " of type " + src.type();
-				self->add_warning(ss.str());
+				self->ajoute_avertissement(ss.str());
 				dest.reset();
 			}
 		}
@@ -440,7 +454,7 @@ struct CombineOp {
 					/* Resampling is disabled.  Just log a warning. */
 					std::stringstream ss;
 					ss << aGridName << " and " << bGridName << " transforms don't match\n";
-					self->add_warning(ss.str());
+					self->ajoute_avertissement(ss.str());
 				}
 			}
 			else {
@@ -475,7 +489,7 @@ struct CombineOp {
 						   << " background values don't match ("
 						   << std::setprecision(3) << a << " vs. " << b << ");\n"
 						   << "                 the output grid will not be a valid level set\n";
-						self->add_warning(ss.str());
+						self->ajoute_avertissement(ss.str());
 					}
 				}
 				else {
@@ -519,7 +533,7 @@ struct CombineOp {
 					   << " have different vector types\n"
 					   << "                 (" << openvdb::GridBase::vecTypeToString(aVecType)
 					   << " vs. " << openvdb::GridBase::vecTypeToString(bVecType) << ")";
-					self->add_warning(ss.str());
+					self->ajoute_avertissement(ss.str());
 				}
 
 				break;
@@ -816,7 +830,7 @@ struct CombineOp {
 			if (!success) {
 				std::stringstream ss;
 				ss << "grid " << bGridName << " has unsupported type " << bBaseGrid->type();
-				self->add_warning(ss.str());
+				self->ajoute_avertissement(ss.str());
 			}
 		}
 	}
@@ -824,12 +838,11 @@ struct CombineOp {
 
 /* ************************************************************************** */
 
-NodeOpenVDBCombine::NodeOpenVDBCombine()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBCombine::NodeOpenVDBCombine(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input a");
-	addInput("input b (optional)");
-	addOutput("output");
+	entrees(2);
+	sorties(1);
 
 	add_prop("flatten", "Flatten All B into A", property_type::prop_bool);
 	set_prop_default_value_bool(false);
@@ -937,7 +950,7 @@ bool NodeOpenVDBCombine::update_properties()
 	return true;
 }
 
-void NodeOpenVDBCombine::process()
+void NodeOpenVDBCombine::execute(const Context &contexte, double temps)
 {
 	const auto pairs = eval_bool("combine");
 	const auto flatten = eval_bool("flatten");
@@ -949,8 +962,9 @@ void NodeOpenVDBCombine::process()
 	std::vector<Primitive *> prims_to_delete;
 	PrimitiveCollection created_prims(m_collection->factory());
 
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 	const auto a_collection = m_collection;
-	const auto b_collection = getInputCollection("input b (optional)");
+	const auto b_collection = entree(1)->requiers_collection(nullptr, contexte, temps);
 
 	/* Iterate over A and, optionally, B grids. */
 	primitive_iterator aIt(a_collection);
@@ -1051,7 +1065,7 @@ void NodeOpenVDBCombine::process()
 		ss << "some grids were not processed because there were more "
 		   << (unusedA ? "A" : "B") << " grids than "
 		   << (unusedA ? "B" : "A") << " grids\n";
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
 	}
 
 	/* Remove processed prims. */
@@ -1095,7 +1109,7 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,
 		   << openvdb::GridBase::gridClassToString(aGrid->getGridClass()) << " (" << aGridName << ") and "
 		   << openvdb::GridBase::gridClassToString(bGrid->getGridClass()) << " (" << bGridName
 		   << ");\n                 the output grid will not be a valid level set\n";
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
 	}
 
 	if (needA && needB && aGrid->type() != bGrid->type()
@@ -1104,7 +1118,7 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,
 		std::stringstream ss;
 		ss << "Can't combine grid " << aGridName << " of type " << aGrid->type()
 		   << "\n                 with grid " << bGridName << " of type " << bGrid->type();
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
 		return outGrid;
 	}
 
@@ -1137,7 +1151,7 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,
 			   << " has unsupported type " << (needA ? aGrid->type() : bGrid->type());
 		}
 
-		this->add_warning(ss.str());
+		this->ajoute_avertissement(ss.str());
 	}
 
 	return compOp.outGrid;
@@ -1147,9 +1161,12 @@ openvdb::GridBase::Ptr NodeOpenVDBCombine::combineGrids(const int op,
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBCombine);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBCombine>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

@@ -27,19 +27,22 @@
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Create";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Create";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeCreate : public VDBNode {
+class NodeCreate : public OperateurOpenVDB {
 public:
-	NodeCreate();
+	NodeCreate(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeCreate::NodeCreate()
-    : VDBNode(NODE_NAME)
+NodeCreate::NodeCreate(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addOutput("VDB");
+	sorties(1);
 
 	add_prop("grid_name", "Grid Name", property_type::prop_string);
 	set_prop_default_value_string("VDB Grid");
@@ -99,7 +102,7 @@ NodeCreate::NodeCreate()
 	set_prop_tooltip("Uniform voxel size in world units.");
 }
 
-void NodeCreate::process()
+void NodeCreate::execute(const Context &contexte, double temps)
 {
 	const auto background = eval_float("background");
 	const auto voxel_size = eval_float("voxel_size");
@@ -163,14 +166,18 @@ void NodeCreate::process()
 	grid->setVectorType(static_cast<openvdb::VecType>(vectype));
 	grid->setGridClass(static_cast<openvdb::GridClass>(gridclass));
 
+	m_collection->free_all();
 	build_vdb_prim(m_collection, grid);
 }
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeCreate);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeCreate>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

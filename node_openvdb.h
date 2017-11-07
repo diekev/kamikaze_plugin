@@ -22,13 +22,13 @@
  *
  */
 
-#include <kamikaze/nodes.h>
+#include <kamikaze/operateur.h>
 
-class VDBNode : public Node {
+class OperateurOpenVDB : public Operateur {
 public:
-	VDBNode(const std::string &name)
-	    : Node(name)
+	OperateurOpenVDB(Noeud *noeud, const Context &contexte)
+		: Operateur(noeud, contexte)
 	{
-		icon_path("icons/openvdb_icon.svg");
+		chemin_icone("icons/openvdb_icon.svg");
 	}
 };

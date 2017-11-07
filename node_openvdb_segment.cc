@@ -108,22 +108,28 @@ public:
 
 /* ************************************************************************** */
 
-static constexpr auto NODE_NAME = "OpenVDB Segment";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Segment";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBSegment : public VDBNode {
+class NodeOpenVDBSegment : public OperateurOpenVDB {
 public:
-	NodeOpenVDBSegment()
-	    : VDBNode(NODE_NAME)
+	NodeOpenVDBSegment(Noeud *noeud, const Context &contexte)
+	    : OperateurOpenVDB(noeud, contexte)
 	{
-		addInput("input");
-		addOutput("output");
+		entrees(1);
+		sorties(1);
 
 		add_prop("append_number", "Append Segment Number to Grid Name", property_type::prop_bool);
 		set_prop_default_value_bool(true);
 	}
 
-	void process() override
+	const char *nom_entree(size_t /*index*/) override { return "input"; }
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override
 	{
+		entree(0)->requiers_collection(m_collection, contexte, temps);
+
 		auto num_grids = 0;
 
 		for (auto prim : primitive_iterator(m_collection, VDBVolume::id)) {
@@ -133,7 +139,7 @@ public:
 		}
 
 		if (num_grids == 0) {
-			this->add_warning("No VDB grids to process.");
+			this->ajoute_avertissement("No VDB grids to process.");
 			return;
 		}
 
@@ -170,9 +176,12 @@ public:
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBSegment);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBSegment>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

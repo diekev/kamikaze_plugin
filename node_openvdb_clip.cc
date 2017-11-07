@@ -108,16 +108,16 @@ struct MaskClipOp {
 
 }  /* unnamed namespace */
 
-static constexpr auto NODE_NAME = "OpenVDB Clip";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Clip";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBClip : public VDBNode {
+class NodeOpenVDBClip : public OperateurOpenVDB {
 public:
-	NodeOpenVDBClip()
-	    : VDBNode(NODE_NAME)
+	NodeOpenVDBClip(Noeud *noeud, const Context &contexte)
+	    : OperateurOpenVDB(noeud, contexte)
 	{
-		addInput("input");
-		addInput("mask");
-		addOutput("output");
+		entrees(2);
+		sorties(1);
 
 		add_prop("use_mask", "Use Mask", property_type::prop_bool);
 		set_prop_default_value_bool(false);
@@ -130,9 +130,24 @@ public:
 		                 "If disabled, keep voxels that lie outside the clipping region.");
 	}
 
-	void process() override
+	const char *nom_entree(size_t index) override
 	{
-		const auto mask_collection = getInputCollection("mask");
+		switch (index) {
+			default:
+			case 0:
+				return "input";
+			case 1:
+				return "mask";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
+
+	void execute(const Context &contexte, double temps) override
+	{
+		entree(0)->requiers_collection(m_collection, contexte, temps);
+
+		const auto mask_collection = entree(1)->requiers_collection(nullptr, contexte, temps);;
 
 		const bool use_mask = eval_bool("use_mask");
 		const bool inside = eval_bool("keep_inside");
@@ -167,7 +182,7 @@ public:
 				}
 
 				if (!mask_grid) {
-					this->add_warning("Mask VDB not found!");
+					this->ajoute_avertissement("Mask VDB not found!");
 					return;
 				}
 			}
@@ -218,12 +233,12 @@ public:
 
 		if (num_level_sets > 0) {
 			if (num_level_sets == 1) {
-				this->add_warning("A level set grid was clipped, the"
+				this->ajoute_avertissement("A level set grid was clipped, the"
 				                  " resulting grid might not be a valid"
 				                  " level set.\n");
 			}
 			else {
-				this->add_warning("Some level sets were clipped, the"
+				this->ajoute_avertissement("Some level sets were clipped, the"
 				                  " resulting grids might not be a valid"
 				                  " level sets.\n");
 			}
@@ -233,9 +248,12 @@ public:
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBClip);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBClip>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

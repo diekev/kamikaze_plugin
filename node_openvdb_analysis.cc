@@ -104,17 +104,31 @@ enum {
     OP_NORMALIZE  = 7
 };
 
-static constexpr auto NODE_NAME = "OpenVDB Analysis";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Analysis";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeOpenVDBAnalysis : public VDBNode {
+class NodeOpenVDBAnalysis : public OperateurOpenVDB {
 	static const char *operator_name[];
 
 public:
-	NodeOpenVDBAnalysis();
+	NodeOpenVDBAnalysis(Noeud *noeud, const Context &contexte);
+
+	const char *nom_entree(size_t index) override
+	{
+		switch (index) {
+			default:
+			case 0:
+				return "input";
+			case 1:
+				return "mask VDB (optional)";
+		}
+	}
+
+	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
 	bool update_properties() override;
 
-	void process() override;
+	void execute(const Context &contexte, double temps) override;
 };
 
 const char *NodeOpenVDBAnalysis::operator_name[] = {
@@ -128,12 +142,11 @@ const char *NodeOpenVDBAnalysis::operator_name[] = {
     "normalize"
 };
 
-NodeOpenVDBAnalysis::NodeOpenVDBAnalysis()
-    : VDBNode(NODE_NAME)
+NodeOpenVDBAnalysis::NodeOpenVDBAnalysis(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("input");
-	addInput("mask VDB (optional)");
-	addOutput("output");
+	entrees(2);
+	sorties(1);
 
 	/* Operator. */
     {
@@ -177,8 +190,10 @@ bool NodeOpenVDBAnalysis::update_properties()
 	return true;
 }
 
-void NodeOpenVDBAnalysis::process()
+void NodeOpenVDBAnalysis::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
     const int whichOp = eval_enum("operator");
     if (whichOp < OP_GRADIENT || whichOp > OP_NORMALIZE) {
         std::ostringstream ostr;
@@ -191,7 +206,7 @@ void NodeOpenVDBAnalysis::process()
     openvdb::util::NullInterrupter boss;
 
     // Check mask input
-    const auto maskGeo = getInputCollection("mask VDB (optional)");
+	const auto maskGeo = entree(1)->requiers_collection(nullptr, contexte, temps);
     openvdb::BoolGrid::Ptr maskGrid;
 
     if (maskGeo) {
@@ -206,7 +221,7 @@ void NodeOpenVDBAnalysis::process()
         }
 
 		if (!maskGrid) {
-			this->add_warning("Mask VDB not found.");
+			this->ajoute_avertissement("Mask VDB not found.");
 		}
     }
 
@@ -333,7 +348,7 @@ void NodeOpenVDBAnalysis::process()
 
             ss << " of type " << vdb->getGrid().valueType();
 
-            this->add_warning(ss.str().c_str());
+			this->ajoute_avertissement(ss.str().c_str());
         }
 
         // Rename grid
@@ -361,9 +376,12 @@ void NodeOpenVDBAnalysis::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeOpenVDBAnalysis);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeOpenVDBAnalysis>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

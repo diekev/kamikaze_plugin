@@ -29,7 +29,8 @@
 #include "util_openvdb_process.h"
 #include "volumebase.h"
 
-static constexpr auto NODE_NAME = "OpenVDB Resample";
+static constexpr auto NOM_OPERATEUR = "OpenVDB Resample";
+static constexpr auto AIDE_OPERATEUR = "";
 
 enum {
 	NEAREST = 0,
@@ -37,19 +38,22 @@ enum {
 	QUADRATIC,
 };
 
-class NodeResample : public VDBNode {
+class NodeResample : public OperateurOpenVDB {
 public:
-	NodeResample();
+	NodeResample(Noeud *noeud, const Context &contexte);
 	~NodeResample() = default;
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
+	const char *nom_sortie(size_t /*index*/) override { return "VDB"; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeResample::NodeResample()
-    : VDBNode(NODE_NAME)
+NodeResample::NodeResample(Noeud *noeud, const Context &contexte)
+    : OperateurOpenVDB(noeud, contexte)
 {
-	addInput("VDB");
-	addOutput("VDB");
+	entrees(1);
+	sorties(1);
 
 	EnumProperty order_enum;
 	order_enum.insert("Nearest",   NEAREST);
@@ -157,7 +161,7 @@ struct ResampleGridOp {
 	}
 };
 
-void NodeResample::process()
+void NodeResample::execute(const Context &contexte, double temps)
 {
 	using namespace openvdb;
 
@@ -168,6 +172,8 @@ void NodeResample::process()
 //	const auto rotate = eval_vec3("rotate");
 //	const auto scale = eval_vec3("scale");
 //	const auto pivot = eval_vec3("pivot");
+
+	entree(0)->requiers_collection(m_collection, contexte, temps);
 
 	for (auto &prim : primitive_iterator(this->m_collection, VDBVolume::id)) {
 		auto vdb_prim = static_cast<VDBVolume *>(prim);
@@ -192,9 +198,12 @@ void NodeResample::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("VDB", NODE_NAME, NodeResample);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeResample>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "OpenVDB"));
 }
 
 }

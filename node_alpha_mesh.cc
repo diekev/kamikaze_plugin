@@ -32,25 +32,29 @@
  */
 
 #include <kamikaze/mesh.h>
-#include <kamikaze/nodes.h>
+#include <kamikaze/operateur.h>
 #include <kamikaze/prim_points.h>
 
-static constexpr auto NODE_NAME = "Alpha Mesh From Points";
+static constexpr auto NOM_OPERATEUR = "Alpha Mesh From Points";
+static constexpr auto AIDE_OPERATEUR = "";
 
-class NodeAlphaMesh : public Node {
+class NodeAlphaMesh : public Operateur {
 	float m_radius = 1.0f;
 
 public:
-	NodeAlphaMesh();
+	NodeAlphaMesh(Noeud *noeud, const Context &contexte);
 
-	void process() override;
+	const char *nom_entree(size_t /*index*/) override { return ""; }
+	const char *nom_sortie(size_t /*index*/) override { return ""; }
+
+	void execute(const Context &contexte, double temps) override;
 };
 
-NodeAlphaMesh::NodeAlphaMesh()
-    : Node(NODE_NAME)
+NodeAlphaMesh::NodeAlphaMesh(Noeud *noeud, const Context &contexte)
+	: Operateur(noeud, contexte)
 {
-	addInput("Points");
-	addOutput("Mesh");
+	entrees(1);
+	sorties(1);
 
 	add_prop("point_radius", "Point Radius", property_type::prop_float);
 	set_prop_min_max(0.0f, 2.0f);
@@ -192,8 +196,10 @@ void construct_alpha_mesh(PointList &points, const float radius,
 	}
 }
 
-void NodeAlphaMesh::process()
+void NodeAlphaMesh::execute(const Context &contexte, double temps)
 {
+	entree(0)->requiers_collection(m_collection, contexte, temps);
+
 	const auto radius = eval_float("point_radius");
 
 	for (auto &prim : primitive_iterator(m_collection, PrimPoints::id)) {
@@ -209,9 +215,12 @@ void NodeAlphaMesh::process()
 
 extern "C" {
 
-void new_kamikaze_node(NodeFactory *factory)
+void nouvel_operateur_kamikaze(UsineOperateur *usine)
 {
-	REGISTER_NODE("Mesh", NODE_NAME, NodeAlphaMesh);
+	usine->enregistre_type(
+				NOM_OPERATEUR,
+				cree_description<NodeAlphaMesh>(
+					NOM_OPERATEUR, AIDE_OPERATEUR, "Mesh"));
 }
 
 }
