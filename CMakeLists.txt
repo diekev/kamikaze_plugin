@@ -120,6 +120,7 @@ set(NODE_SRC
 	node_openvdb_to_polygons.cc
 	node_openvdb_transform.cc
 	node_openvdb_write.cc
+	operateur_openvdb_collision.cc
 )
 
 foreach(file_name ${NODE_SRC})
