@@ -52,6 +52,8 @@ public:
 
 	const char *nom_sortie(size_t /*index*/) override { return "Mesh"; }
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	void execute(const Context &contexte, double temps) override;
 
 	void createMesh(PointList *points, int mesh_index, PolygonList *polys, Attribute *normals, MeshInfo *info, Mesh *mesh);

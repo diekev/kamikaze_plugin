@@ -53,6 +53,8 @@ public:
 
 	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	void execute(const Context &contexte, double temps) override;
 	bool update_properties() override;
 };

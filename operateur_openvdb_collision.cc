@@ -75,6 +75,8 @@ public:
 		return "Sortie";
 	}
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	void execute(const Context &contexte, double temps) override
 	{
 		if (temps == m_image_debut) {

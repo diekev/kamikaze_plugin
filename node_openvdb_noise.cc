@@ -138,6 +138,8 @@ public:
 
 	void execute(const Context &contexte, double temps) override;
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	template<typename GridType>
 	void apply_noise(openvdb::GridBase &grid,
 	                 const FractalBoltzmanGenerator& fbGenerator,

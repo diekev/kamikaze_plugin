@@ -175,6 +175,8 @@ public:
 	const char *nom_entree(size_t /*index*/) override { return "input"; }
 	const char *nom_sortie(size_t /*index*/) override { return "output"; }
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	bool update_properties() override
 	{
 		const auto lod_mode = eval_int("mode");

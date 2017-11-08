@@ -42,6 +42,8 @@ public:
 	const char *nom_entree(size_t /*index*/) override { return "VDB"; }
 	const char *nom_sortie(size_t /*index*/) override { return "Mesh"; }
 
+	const char *nom() override { return NOM_OPERATEUR; }
+
 	void execute(const Context &contexte, double temps) override;
 };
 
