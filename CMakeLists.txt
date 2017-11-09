@@ -143,3 +143,40 @@ install(
 	FILES openvdb_icon.svg
 	DESTINATION icons
 )
+
+set(SOURCES_SMOKE
+	poseidon/smoke/advection.h
+	poseidon/smoke/globals.h
+	poseidon/smoke/smokesimulation.h
+	poseidon/smoke/types.h
+	poseidon/smoke/util_smoke.h
+
+	poseidon/smoke/forces.cc
+	poseidon/smoke/forces.h
+	poseidon/smoke/pressure.cc
+	poseidon/smoke/smokesimulation.cc
+)
+
+set(SOURCES_UMI_NO_OU
+	poseidon/umi_no_ou/advection.h
+	poseidon/umi_no_ou/forces.h
+	poseidon/umi_no_ou/globals.h
+	poseidon/umi_no_ou/particles.h
+	poseidon/umi_no_ou/types.h
+	poseidon/umi_no_ou/utils.h
+
+	poseidon/umi_no_ou/forces.cc
+	poseidon/umi_no_ou/main.cc
+	poseidon/umi_no_ou/particles.cc
+	poseidon/umi_no_ou/pressure.cc
+	poseidon/umi_no_ou/utils.cc
+)
+
+add_executable(smoke ${SOURCES_SMOKE})
+add_executable(umi_no_ou ${SOURCES_UMI_NO_OU})
+
+set(SOURCES_POSEIDON
+	poseidon/main.cc
+)
+
+define_plugin(poseidon "${SOURCES_POSEIDON}" "${KAMIKAZE_OPENVDB_LIBS}")
