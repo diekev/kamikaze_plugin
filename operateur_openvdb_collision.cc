@@ -53,6 +53,11 @@ public:
 	{
 		entrees(2);
 		sorties(1);
+
+		add_prop("sous_etapes", "Sous-étapes", property_type::prop_int);
+		set_prop_default_value_int(5);
+		set_prop_min_max(1, 10);
+		set_prop_tooltip("Le nombre de sous étape à prendre pour chaque évaluation.");
 	}
 
 	~OperateurOpenVDBCollision()
@@ -102,6 +107,8 @@ public:
 		/* À FAIRE : passe le temps par image en paramètre. */
 		const auto temps_par_image = 1.0f / 24.0f;
 		const auto gravite = m_gravite * temps_par_image;
+		const auto sous_etapes = eval_int("sous_etapes");
+		const auto echelle_sous_etapes = 1.0f / sous_etapes;
 
 		auto collection_obstacle = entree(1)->requiers_collection(nullptr, contexte, temps);
 
@@ -138,9 +145,9 @@ public:
 
 			for (auto i = 0ul; i < nombre_points; ++i) {
 				auto velocite = attr_vel->vec3(i) + gravite;
-				const auto velocite_etape = velocite / 5.0f;
+				const auto velocite_etape = velocite * echelle_sous_etapes;
 
-				for (auto e = 1; e <= 5; ++e) {
+				for (auto e = 1; e <= sous_etapes; ++e) {
 					auto &point = (*points)[i];
 					point += velocite_etape;
 
@@ -159,12 +166,12 @@ public:
 
 						/* Calculer le gradient de la collision. */
 						stencil.moveTo(pos_vdb);
-						auto cpt = stencil.cpt();
+						auto gradient = stencil.gradient();
 
 						/* Replacer la particule sur la surface selon le gradient. */
-						point[0] = cpt[0];
-						point[1] = cpt[1];
-						point[2] = cpt[2];
+						point[0] -= gradient[0];
+						point[1] -= gradient[1];
+						point[2] -= gradient[2];
 
 						/* Répondre à la collision. */
 						velocite = -velocite;
