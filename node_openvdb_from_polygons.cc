@@ -25,7 +25,7 @@
 #include "node_openvdb.h"
 
 #include <kamikaze/mesh.h>
-#include <kamikaze/utils_glm.h>
+#include <kamikaze/outils/mathématiques.h>
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/MeshToVolume.h>

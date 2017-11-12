@@ -23,7 +23,7 @@
  */
 
 #include "node_openvdb.h"
-#include <kamikaze/noise.h>
+#include <kamikaze/bruit.h>
 
 #include <openvdb/math/Operators.h>
 #include <openvdb/tools/Interpolation.h> /* for box sampler */
@@ -83,7 +83,7 @@ public:
             point = (point * curfreq);
 
             // generate noise in the [-1,1] range
-            signal = 2.0f * simplex_noise_3d(point[0], point[1], point[2]) - 1.0f;
+			signal = 2.0f * bruit_simplex_3d(point[0], point[1], point[2]) - 1.0f;
 
             if (m_noise_mode > NOISE_STRAIGHT) {
                 signal = openvdb::math::Pow(openvdb::math::Abs(signal), m_gain);

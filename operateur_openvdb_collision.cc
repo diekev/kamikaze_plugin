@@ -26,7 +26,7 @@
 
 #include <kamikaze/primitive.h>
 #include <kamikaze/prim_points.h>
-#include <kamikaze/utils_glm.h>
+#include <kamikaze/outils/mathématiques.h>
 
 #include <openvdb/tools/Interpolation.h>
 #include <openvdb/math/Stencils.h>

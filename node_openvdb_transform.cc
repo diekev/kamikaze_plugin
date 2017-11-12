@@ -23,7 +23,6 @@
  */
 
 #include "node_openvdb.h"
-#include <kamikaze/noise.h>
 
 #include <openvdb/tools/VectorTransformer.h>
 
