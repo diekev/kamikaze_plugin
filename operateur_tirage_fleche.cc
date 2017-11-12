@@ -378,7 +378,7 @@ public:
 			auto point = v0 + r * e0 + s * e1;
 
 			/* Vérifie que le point respecte la condition de distance minimal */
-			auto ok = verifie_distance_minimal(*points, point, distance);
+			auto ok = verifie_distance_minimal(*points_nuage, point, distance);
 
 			if (ok) {
 				points_nuage->push_back(point);
@@ -386,7 +386,7 @@ public:
 
 			/* Vérifie si le triangle est complétement couvert par un point de
 			 * l'ensemble. */
-			auto couvert = triangle_couvert(*triangle, *points, distance);
+			auto couvert = triangle_couvert(*triangle, *points_nuage, distance);
 
 			if (couvert) {
 				/* Si couvert, jète le triangle. */
@@ -420,7 +420,7 @@ public:
 						continue;
 					}
 
-					couvert = triangle_couvert(triangle_fils[i], *points, distance);
+					couvert = triangle_couvert(triangle_fils[i], *points_nuage, distance);
 
 					if (couvert) {
 						continue;
