@@ -28,6 +28,7 @@
 
 #include <kamikaze/outils/mathématiques.h>
 
+#include <map>
 #include <random>
 #include <sstream>
 #include <stack>
@@ -42,6 +43,68 @@ static constexpr auto NOMBRE_BOITE = 64;
 static const char *NOM_OPERATEUR = "Tirage de flèche";
 static const char *AIDE_OPERATEUR =
 		"Crée des points sur une surface en l'échantillonnant par tirage de flèche.";
+
+/* ************************************************************************** */
+
+struct int3 {
+	size_t x, y, z;
+
+	bool operator<(const int3 &autre) const
+	{
+		if (x < autre.x) {
+			return true;
+		}
+
+		if (x == autre.x && y < autre.y) {
+			return true;
+		}
+
+		if (x == autre.x && y == autre.y && z < autre.z) {
+			return true;
+		}
+
+		return false;
+	}
+};
+
+#define HASH_SPATIAL
+
+struct HashSpatial {
+	std::map<int3, std::vector<glm::vec3>> m_tableau;
+	float m_taille = 1.0f;
+	float m_taille_inverse = 1.0f;
+	size_t m_nombre_cellule;
+
+	int3 fonction_hash(const glm::vec3 &particle)
+	{
+		int3 ret;
+
+		ret.x = static_cast<size_t>(particle.x * m_taille_inverse);
+		ret.y = static_cast<size_t>(particle.y * m_taille_inverse);
+		ret.z = static_cast<size_t>(particle.z * m_taille_inverse);
+
+		return ret;
+	}
+
+	void ajoute(const glm::vec3 &particle)
+	{
+		auto hash = fonction_hash(particle);
+		m_tableau[hash].push_back(particle);
+	}
+
+	const std::vector<glm::vec3> &particules(const glm::vec3 &particule)
+	{
+		auto hash = fonction_hash(particule);
+		return m_tableau[hash];
+	}
+
+	size_t taille() const
+	{
+		return m_tableau.size();
+	}
+};
+
+/* ************************************************************************** */
 
 struct Triangle {
 	glm::vec3 v0 = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -139,6 +202,41 @@ struct BoiteTriangle {
 	ListeTriangle triangles;
 };
 
+#ifdef HASH_SPATIAL
+bool verifie_distance_minimal(HashSpatial &hash, const glm::vec3 &point, float distance)
+{
+	const auto points = hash.particules(point);
+
+	for (auto p = 0ul; p < points.size(); ++p) {
+		if (glm::length(point - points[p]) < distance) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool triangle_couvert(const Triangle &triangle, HashSpatial &hash, const float radius)
+{
+	const auto &v0 = triangle.v0;
+	const auto &v1 = triangle.v1;
+	const auto &v2 = triangle.v2;
+
+	const auto centre_triangle = (v0 + v1 + v2) / 3.0f;
+	const auto points = hash.particules(centre_triangle);
+
+	for (auto p = 0ul; p < points.size(); ++p) {
+		if (glm::length(v0 - points[p]) <= radius
+			&& glm::length(v1 - points[p]) <= radius
+			&& glm::length(v2 - points[p]) <= radius)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+#else
 /* À FAIRE : à optimiser avec une table de hachage grille spatiale ou un arbre-KD. */
 bool verifie_distance_minimal(const PointList &points, const glm::vec3 &point, float distance)
 {
@@ -169,6 +267,7 @@ bool triangle_couvert(const Triangle &triangle, const PointList &points, const f
 
 	return false;
 }
+#endif
 
 class OperateurTirageFleche : public Operateur {
 public:
@@ -304,6 +403,10 @@ public:
 		const auto seuil_aire = aire_minimum / 10000.0f;
 		const auto distance = eval_float("distance");
 
+#ifdef HASH_SPATIAL
+		HashSpatial hash;
+#endif
+
 		/* Tant qu'il reste des triangles à remplir... */
 		while (true) {
 			/* Choisis une boîte avec une probabilité proportionnelle à l'aire
@@ -378,15 +481,26 @@ public:
 			auto point = v0 + r * e0 + s * e1;
 
 			/* Vérifie que le point respecte la condition de distance minimal */
+#ifdef HASH_SPATIAL
+			auto ok = verifie_distance_minimal(hash, point, distance);
+#else
 			auto ok = verifie_distance_minimal(*points_nuage, point, distance);
+#endif
 
 			if (ok) {
+#ifdef HASH_SPATIAL
+				hash.ajoute(point);
+#endif
 				points_nuage->push_back(point);
 			}
 
 			/* Vérifie si le triangle est complétement couvert par un point de
 			 * l'ensemble. */
+#ifdef HASH_SPATIAL
+			auto couvert = triangle_couvert(*triangle, hash, distance);
+#else
 			auto couvert = triangle_couvert(*triangle, *points_nuage, distance);
+#endif
 
 			if (couvert) {
 				/* Si couvert, jète le triangle. */
@@ -420,7 +534,11 @@ public:
 						continue;
 					}
 
+#ifdef HASH_SPATIAL
+					couvert = triangle_couvert(triangle_fils[i], hash, distance);
+#else
 					couvert = triangle_couvert(triangle_fils[i], *points_nuage, distance);
+#endif
 
 					if (couvert) {
 						continue;
@@ -439,6 +557,9 @@ public:
 				boite->triangles.enleve(triangle);
 			}
 		}
+
+		std::cerr << "Nombre de points : " << points_nuage->size() << "\n";
+		std::cerr << "Taille hash : " << hash.taille() << '\n';
 	}
 };
 
