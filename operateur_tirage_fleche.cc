@@ -44,10 +44,12 @@ static const char *AIDE_OPERATEUR =
 		"Crée des points sur une surface en l'échantillonnant par tirage de flèche.";
 
 struct Triangle {
-	glm::vec3 v0{0.0f, 0.0f, 0.0f}, v1{0.0f, 0.0f, 0.0f}, v2{0.0f, 0.0f, 0.0f};
+	glm::vec3 v0 = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 v1 = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 v2 = glm::vec3(0.0f, 0.0f, 0.0f);
 	float aire = 0.0f;
 	bool jete = false;
-	int index = 0;
+	size_t index = 0;
 
 	Triangle() = default;
 
@@ -58,8 +60,6 @@ struct Triangle {
 		v1 = v_1;
 		v2 = v_2;
 	}
-
-	Triangle(const Triangle &triangle) = default;
 };
 
 float calcule_aire(const Triangle &triangle)
@@ -71,7 +71,7 @@ float calcule_aire(const Triangle &triangle)
 }
 
 class ListeTriangle {
-	std::vector<Triangle> m_triangles{};
+	std::vector<Triangle *> m_triangles{};
 	std::stack<int, std::vector<int>> m_pile_index{};
 
 	int m_nombre_triangles = 0;
@@ -79,34 +79,48 @@ class ListeTriangle {
 public:
 	ListeTriangle() = default;
 
-	void ajoute(Triangle triangle)
+	~ListeTriangle()
 	{
-		std::cerr << "Début : " << __func__ << '\n';
+		for (Triangle *triangle : m_triangles) {
+			delete triangle;
+		}
+	}
+
+	Triangle *ajoute(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
+	{
+		Triangle *triangle;
 
 		if (m_pile_index.empty()) {
-			triangle.index = m_triangles.size();
+			triangle = new Triangle(v0, v1, v2);
+			triangle->index = m_triangles.size();
+
 			m_triangles.push_back(triangle);
 		}
 		else {
 			auto index = m_pile_index.top();
 			m_pile_index.pop();
 
-			triangle.index = index;
-			m_triangles[index] = triangle;
+			triangle = m_triangles[index];
+			triangle->index = index;
+			triangle->v0 = v0;
+			triangle->v1 = v1;
+			triangle->v2 = v2;
+			triangle->jete = false;
 		}
 
 		++m_nombre_triangles;
-		std::cerr << "Fin : " << __func__ << '\n';
+
+		return triangle;
 	}
 
-	void enleve(Triangle &triangle)
+	void enleve(Triangle *triangle)
 	{
-		triangle.jete = true;
-		m_pile_index.push(triangle.index);
+		triangle->jete = true;
+		m_pile_index.push(triangle->index);
 		--m_nombre_triangles;
 	}
 
-	std::vector<Triangle> &triangles()
+	std::vector<Triangle *> &triangles()
 	{
 		return m_triangles;
 	}
@@ -240,8 +254,6 @@ public:
 			}
 		}
 
-		std::cerr << "Placement des triangles dans les boîtes....\n";
-
 		/* Place les triangles dans les boites. */
 		BoiteTriangle boites[NOMBRE_BOITE];
 
@@ -262,13 +274,13 @@ public:
 
 			auto &boite = boites[index_boite];
 
-			boite.triangles.ajoute(triangle);
+			boite.triangles.ajoute(triangle.v0, triangle.v1, triangle.v2);
 			boite.aire_minimum = std::min(boite.aire_minimum, triangle.aire);
 			boite.aire_maximum = 2 * boite.aire_minimum;
 			boite.aire_totale += triangle.aire;
 		}
 
-		std::cerr << "Création de la primitive nuage de points.\n";
+		triangles.clear();
 
 		auto nuage_points = static_cast<PrimPoints *>(m_collection->build("PrimPoints"));
 		auto points_nuage = nuage_points->points();
@@ -280,17 +292,13 @@ public:
 		const auto seuil_aire = aire_minimum / 10000.0f;
 		const auto distance = 0.01f;
 
-		std::cerr << "Lancement de l'algorithme...\n";
-
 		/* Tant qu'il reste des triangles à remplir... */
 		while (true) {
-			std::cerr << "----------------------------------------------------\n";
 			/* Choisis une boîte avec une probabilité proportionnelle à l'aire
 			 * total des fragments de la boîte. À FAIRE. */
 			BoiteTriangle *boite;
 			auto boite_trouvee = false;
 
-			std::cerr << "Tirage d'une boîte...\n";
 			for (auto i = 0; i < NOMBRE_BOITE; ++i) {
 				if (boites[i].triangles.vide()) {
 					continue;
@@ -317,12 +325,12 @@ public:
 			Triangle *triangle;
 			bool triangle_trouve = false;
 
-			std::cerr << "Tirage d'un triangle...\n";
-			for (auto &tri : boite->triangles.triangles()) {
-				if (tri.jete) {
+			for (auto tri : boite->triangles.triangles()) {
+				if (tri->jete) {
 					continue;
 				}
-				triangle = &tri;
+
+				triangle = tri;
 				triangle_trouve = true;
 				break;
 
@@ -341,7 +349,6 @@ public:
 
 			/* Choisis un point aléatoire p sur le triangle en prenant une
 			 * coordonnée barycentrique aléatoire. */
-			std::cerr << "Coordonnées barycentrique...\n";
 			const auto v0 = triangle->v0;
 			const auto v1 = triangle->v1;
 			const auto v2 = triangle->v2;
@@ -359,63 +366,31 @@ public:
 			auto point = v0 + r * e0 + s * e1;
 
 			/* Vérifie que le point respecte la condition de distance minimal */
-			std::cerr << "Distance minimal...\n";
 			auto ok = verifie_distance_minimal(*points, point, distance);
 
 			if (ok) {
-				std::cerr << "Ajoute point au nuage...\n";
 				points_nuage->push_back(point);
 			}
 
 			/* Vérifie si le triangle est complétement couvert par un point de
 			 * l'ensemble. */
-			std::cerr << "Triangle couvert...\n";
 			auto couvert = triangle_couvert(*triangle, *points, distance);
 
 			if (couvert) {
-				std::cerr << "Suppression du triangle...\n";
 				/* Si couvert, jète le triangle. */
-				boite->triangles.enleve(*triangle);
+				boite->triangles.enleve(triangle);
 				boite->aire_totale -= triangle->aire;
 			}
 			else {
-				std::cerr << "Coupe du triangle...\n";
-				std::cerr << "Coordonnées : " << v0 << ", " << v1 << ", " << v2 << '\n';
-
 				/* Sinon, coupe le triangle en petit morceaux, et ajoute ceux
 				 * qui ne ne sont pas totalement couvert à la liste, sauf si son
 				 * aire est plus petite que le seuil d'acceptance. */
 
 				/* On coupe le triangle en quatre en introduisant un point au
 				 * centre de chaque coté. */
-				const auto v01 = v0 + (v1 - v0) * 0.5f;
-				const auto v12 = v1 + (v2 - v1) * 0.5f;
-				const auto v20 = v2 + (v0 - v2) * 0.5f;
-
-				assert(v0 != v1);
-				assert(v0 != v2);
-				assert(v1 != v2);
-
-				assert(v0 != v01);
-				assert(v0 != v12);
-				assert(v0 != v20);
-
-				assert(v1 != v01);
-				assert(v1 != v12);
-				assert(v1 != v20);
-
-				assert(v2 != v01);
-				assert(v2 != v12);
-				assert(v2 != v20);
-
-				assert(v01 != v12);
-				assert(v01 != v20);
-				assert(v12 != v20);
-
-				assert((v0 != v01) && (v01 != v20) && (v0 != v20));
-				assert((v01 != v1) && (v1 != v12) && (v12 != v01));
-				assert((v12 != v2) && (v2 != v20) && (v20 != v12));
-				assert((v20 != v01) && (v01 != v12) && (v12 != v20));
+				const auto v01 = (v0 + v1) * 0.5f;
+				const auto v12 = (v1 + v2) * 0.5f;
+				const auto v20 = (v2 + v0) * 0.5f;
 
 				Triangle triangle_fils[4] = {
 					Triangle{ v0, v01, v20},
@@ -425,18 +400,10 @@ public:
 				};
 
 				for (auto i = 0; i < 4; ++i) {
-					std::cerr << "--- Triangle fils : " << i << '\n';
 
 					const auto aire = calcule_aire(triangle_fils[i]);
 
 					if (aire <= seuil_aire) {
-						std::cerr << "    Aire inférireure au seuil : "
-								  << "aire : " << aire
-								  << ", seuil : " << seuil_aire << '\n';
-						std::cerr << "    Coordonnées : "
-								  << triangle_fils[i].v0 << ", "
-								  << triangle_fils[i].v1 << ", "
-								  << triangle_fils[i].v2 << '\n';
 						boite->aire_totale -= aire;
 						continue;
 					}
@@ -444,28 +411,20 @@ public:
 					couvert = triangle_couvert(triangle_fils[i], *points, distance);
 
 					if (couvert) {
-						std::cerr << "    Triangle couvert.\n";
 						continue;
 					}
 
 					const auto index_boite = static_cast<int>(std::log2(aire_maximum / aire));
 
 					if (index_boite >= 0 && index_boite < 64) {
-						std::cerr << "    Ajout du triangle dans la boîte : " << index_boite << '\n';
 						auto &b = boites[index_boite];
 
-						b.triangles.ajoute(triangle_fils[i]);
+						b.triangles.ajoute(triangle_fils[i].v0, triangle_fils[i].v1, triangle_fils[i].v2);
 						b.aire_totale += aire;
-					}
-					else {
-						std::cerr << "    Erreur lors de la génération de l'index d'une boîte !";
-						std::cerr << "\n       Index : " << index_boite;
-						std::cerr << "\n       Aire triangle : " << aire;
-						std::cerr << "\n       Aire totale : " << aire_maximum;
 					}
 				}
 
-				boite->triangles.enleve(*triangle);
+				boite->triangles.enleve(triangle);
 			}
 		}
 	}
