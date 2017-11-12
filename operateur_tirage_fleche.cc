@@ -177,6 +177,17 @@ public:
 	{
 		entrees(1);
 		sorties(1);
+
+		/* graine */
+		add_prop("graine", "Graine", property_type::prop_int);
+		set_prop_min_max(1, 100000);
+		set_prop_default_value_int(1);
+
+		/* distance */
+		add_prop("distance", "Distance", property_type::prop_float);
+		set_prop_min_max(0.0f, 1.0f);
+		set_prop_default_value_float(0.1f);
+		set_prop_tooltip("La distance minimum entre deux points.");
 	}
 
 	const char *nom_entree(size_t /*index*/) override
@@ -285,12 +296,13 @@ public:
 		auto nuage_points = static_cast<PrimPoints *>(m_collection->build("PrimPoints"));
 		auto points_nuage = nuage_points->points();
 
-		std::mt19937 rng(19937);
+		const auto graine = eval_int("graine");
+		std::mt19937 rng(19937 + graine);
 		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 		/* Ne considère que les triangles dont l'aire est supérieure à ce seuil. */
 		const auto seuil_aire = aire_minimum / 10000.0f;
-		const auto distance = 0.01f;
+		const auto distance = eval_float("distance");
 
 		/* Tant qu'il reste des triangles à remplir... */
 		while (true) {
