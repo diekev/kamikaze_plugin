@@ -121,6 +121,7 @@ set(NODE_SRC
 	node_openvdb_transform.cc
 	node_openvdb_write.cc
 	operateur_openvdb_collision.cc
+	operateur_tirage_fleche.cc
 )
 
 foreach(file_name ${NODE_SRC})

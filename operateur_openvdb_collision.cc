@@ -26,7 +26,7 @@
 
 #include <kamikaze/primitive.h>
 #include <kamikaze/prim_points.h>
-#include <kamikaze/utils_glm.h>
+#include <kamikaze/outils/mathématiques.h>
 
 #include <openvdb/tools/Interpolation.h>
 #include <openvdb/math/Stencils.h>
@@ -36,10 +36,19 @@
 /**
  * Basé sur « Levelsets in production: Spider-Man 3 » :
  * http://library.imageworks.com/pdfs/imageworks-library-levelsets-in-production-spider-man3.pdf
+ *
+ * Algorithme de résolution des particules basé sur
+ * « Physically Based Modeling: Principles and Practice » :
+ * https://www.cs.cmu.edu/~baraff/sigcourse/notesc.pdf
  */
 
 static constexpr auto NOM_OPERATEUR = "Collision OpenVDB";
 static constexpr auto AIDE_OPERATEUR = "Détection de collision en utilisant OpenVDB.";
+
+enum {
+	COLLISION_ELASTIQUE = 0,
+	COLLISION_NON_ELASTIQUE = 1,
+};
 
 class OperateurOpenVDBCollision : public OperateurOpenVDB {
 	glm::vec3 m_gravite = glm::vec3{0.0f, -9.80665f, 0.0f};
@@ -56,8 +65,19 @@ public:
 
 		add_prop("sous_etapes", "Sous-étapes", property_type::prop_int);
 		set_prop_default_value_int(5);
-		set_prop_min_max(1, 10);
+		set_prop_min_max(1, 20);
 		set_prop_tooltip("Le nombre de sous étape à prendre pour chaque évaluation.");
+
+		EnumProperty enum_prop;
+		enum_prop.insert("Élastique", COLLISION_ELASTIQUE);
+		enum_prop.insert("Non-élastique", COLLISION_NON_ELASTIQUE);
+
+		add_prop("type_collision", "Type collision", property_type::prop_enum);
+		set_prop_enum_values(enum_prop);
+
+		add_prop("coef_restitution", "Coefficient Restitution", property_type::prop_float);
+		set_prop_default_value_float(0.5f);
+		set_prop_min_max(0.0f, 1.0f);
 	}
 
 	~OperateurOpenVDBCollision()
@@ -109,6 +129,8 @@ public:
 		const auto gravite = m_gravite * temps_par_image;
 		const auto sous_etapes = eval_int("sous_etapes");
 		const auto echelle_sous_etapes = 1.0f / sous_etapes;
+		const auto type_collision = eval_enum("type_collision");
+		const auto coefficient_restitution = eval_float("coef_restitution");
 
 		auto collection_obstacle = entree(1)->requiers_collection(nullptr, contexte, temps);
 
@@ -144,11 +166,12 @@ public:
 			auto attr_vel = nuage_points->add_attribute("velocité", ATTR_TYPE_VEC3, nombre_points);
 
 			for (auto i = 0ul; i < nombre_points; ++i) {
+				auto &point = (*points)[i];
 				auto velocite = attr_vel->vec3(i) + gravite;
-				const auto velocite_etape = velocite * echelle_sous_etapes;
+				auto velocite_etape = velocite * echelle_sous_etapes;
+				auto velocite_final = glm::vec3{0.0f, 0.0f, 0.0f};
 
 				for (auto e = 1; e <= sous_etapes; ++e) {
-					auto &point = (*points)[i];
 					point += velocite_etape;
 
 					/* Calcul la position en espace objet. */
@@ -160,39 +183,48 @@ public:
 
 					if (valeur > 0.0f) {
 						/* La particule est en dehors de l'objet. */
+						continue;
 					}
-					else if (valeur < 0.0f) {
-						/* La particule est à l'intérieur de l'objet. */
 
-						/* Calculer le gradient de la collision. */
-						stencil.moveTo(pos_vdb);
-						auto gradient = stencil.gradient();
+					/* La particule est sur ou à l'intérieur de l'objet. */
 
-						/* Replacer la particule sur la surface selon le gradient. */
-						point[0] -= gradient[0];
-						point[1] -= gradient[1];
-						point[2] -= gradient[2];
+					/* Calculer le gradient de la collision. */
+					stencil.moveTo(pos_vdb);
+					auto gradient = stencil.gradient();
 
-						/* Répondre à la collision. */
-						velocite = -velocite;
+					/* Replacer la particule sur la surface selon le gradient. */
+					point[0] -= gradient[0];
+					point[1] -= gradient[1];
+					point[2] -= gradient[2];
 
-						/* Une fois que la collision a été établi, on peut
-						 * passer à la particule suivante. */
-						break;
+					/* Répondre à la collision. */
+
+					/* Trouve la composante normale de la vélocité :
+					 * nv = (N.v)*v, où N est la normal de la collision. */
+					stencil.moveTo(pos_vdb - gradient);
+					gradient = stencil.gradient();
+
+					auto N = glm::vec3(gradient[0], gradient[1], gradient[2]);
+					auto nv = glm::dot(N, velocite_etape) * velocite_etape;
+
+					/* Trouve la composante tangentielle de la vélocité :
+					 * tn = v - nv */
+					auto tn = velocite_etape - nv;
+
+					if (type_collision == COLLISION_ELASTIQUE) {
+						/* Annule la composante normale de la vélocité. */
+						velocite_etape = tn - nv;
 					}
 					else {
-						/* La particule est sur l'objet. */
-
-						/* Répondre à la collision. */
-						velocite = -velocite;
-
-						/* Une fois que la collision a été établi, on peut
-						 * passer à la particule suivante. */
-						break;
+						/* Multiplie la composante normale de la vélocité par le
+						 * coefficient de restitution. */
+						velocite_etape = tn + nv * -coefficient_restitution;
 					}
+
+					velocite_final += velocite_etape;
 				}
 
-				attr_vel->vec3(i, velocite);
+				attr_vel->vec3(i, velocite_final);
 			}
 		}
 	}

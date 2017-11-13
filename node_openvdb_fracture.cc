@@ -29,7 +29,7 @@
 
 #include <kamikaze/mesh.h>
 #include <kamikaze/prim_points.h>
-#include <kamikaze/utils_glm.h>
+#include <kamikaze/outils/mathématiques.h>
 
 #include <openvdb/tools/LevelSetFracture.h>
 

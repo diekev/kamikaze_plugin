@@ -25,7 +25,7 @@
 #include "node_openvdb.h"
 
 #include <kamikaze/prim_points.h>
-#include <kamikaze/util_parallel.h>
+#include <kamikaze/outils/parallélisme.h>
 
 #include <openvdb/tools/PointPartitioner.h>
 
