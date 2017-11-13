@@ -113,6 +113,7 @@ struct Triangle {
 	float aire = 0.0f;
 	bool jete = false;
 	size_t index = 0;
+	Triangle *precedent = nullptr, *suivant = nullptr;
 
 	Triangle() = default;
 
@@ -139,6 +140,9 @@ class ListeTriangle {
 
 	int m_nombre_triangles = 0;
 
+	Triangle *m_premier_triangle = nullptr;
+	Triangle *m_dernier_triangle = nullptr;
+
 public:
 	ListeTriangle() = default;
 
@@ -156,8 +160,10 @@ public:
 		if (m_pile_index.empty()) {
 			triangle = new Triangle(v0, v1, v2);
 			triangle->index = m_triangles.size();
+			triangle->precedent = m_dernier_triangle;
+			m_dernier_triangle = triangle;
 
-			m_triangles.push_back(triangle);
+			//m_triangles.push_back(triangle);
 		}
 		else {
 			auto index = m_pile_index.top();
@@ -178,9 +184,56 @@ public:
 
 	void enleve(Triangle *triangle)
 	{
-		triangle->jete = true;
-		m_pile_index.push(triangle->index);
-		--m_nombre_triangles;
+		if (triangle != m_premier_triangle && triangle != m_dernier_triangle) {
+			triangle->precedent->suivant = triangle->suivant;
+			triangle->suivant->precedent = triangle->precedent;
+		}
+
+		if (triangle == m_premier_triangle) {
+			m_premier_triangle = triangle->suivant;
+
+			if (m_premier_triangle) {
+				m_premier_triangle->precedent = nullptr;
+			}
+		}
+
+		if (triangle == m_dernier_triangle) {
+			m_dernier_triangle = triangle->precedent;
+
+			if (m_dernier_triangle) {
+				m_dernier_triangle->precedent = nullptr;
+			}
+		}
+//		auto index = triangle->index;
+//		auto size = m_triangles.size();
+
+//		if (m_triangles[index] != m_triangles[size - 1]){
+//			assert(triangle == m_triangles[index]);
+
+//			m_triangles[index] = m_triangles[size - 1];
+//			m_triangles[m_nombre_triangles - 1] = triangle;
+//			m_triangles[index]->index = index;
+
+//			assert(triangle != m_triangles[index]);
+//		}
+
+//		m_triangles.pop_back();
+		delete triangle;
+
+//		triangle->jete = true;
+//		m_pile_index.push(triangle->index);
+//		--m_nombre_triangles;
+
+	}
+
+	Triangle *premier_triangle()
+	{
+		return m_premier_triangle;
+	}
+
+	size_t taille() const
+	{
+		return m_nombre_triangles;
 	}
 
 	std::vector<Triangle *> &triangles()
@@ -190,7 +243,7 @@ public:
 
 	bool vide() const
 	{
-		return m_nombre_triangles == 0;
+		return m_premier_triangle == nullptr;
 	}
 };
 
@@ -343,11 +396,11 @@ public:
 			triangle.v2 = (*points)[polygone[2]];
 			triangle.aire = calcule_aire(triangle);
 
-			triangles.push_back(triangle);
-
 			aire_minimum = std::min(aire_minimum, triangle.aire);
 			aire_maximum = std::max(aire_maximum, triangle.aire);
 			aire_totale += triangle.aire;
+
+			triangles.emplace_back(triangle);
 
 			if (polygone[3] != INVALID_INDEX) {
 				Triangle triangle2;
@@ -356,12 +409,37 @@ public:
 				triangle2.v2 = (*points)[polygone[3]];
 				triangle2.aire = calcule_aire(triangle);
 
-				triangles.push_back(triangle2);
-
 				aire_minimum = std::min(aire_minimum, triangle2.aire);
 				aire_maximum = std::max(aire_maximum, triangle2.aire);
 				aire_totale += triangle2.aire;
+
+				triangles.emplace_back(triangle2);
 			}
+		}
+
+		if (aire_minimum <= 0.0f) {
+			std::stringstream ss;
+			ss << "Erreur : l'aire minimale est inférieure ou égale à 0 !";
+			ss << "\n   Aire minimale : " << aire_minimum;
+			this->ajoute_avertissement(ss.str());
+			return;
+		}
+
+		if (aire_maximum <= 0.0f) {
+			std::stringstream ss;
+			ss << "Erreur : l'aire maximale est inférieure ou égale à 0 !";
+			ss << "\n   Aire maximale : " << aire_maximum;
+			this->ajoute_avertissement(ss.str());
+			return;
+		}
+
+		if (aire_maximum < aire_minimum) {
+			std::stringstream ss;
+			ss << "Erreur : l'aire maximale est inférieure à l'aire minimale !";
+			ss << "\n   Aire minimale : " << aire_minimum;
+			ss << "\n   Aire maximale : " << aire_maximum;
+			this->ajoute_avertissement(ss.str());
+			return;
 		}
 
 		/* Place les triangles dans les boites. */
@@ -379,7 +457,7 @@ public:
 				ss << "\n   Aire triangle : " << triangle.aire;
 				ss << "\n   Aire totale : " << aire_maximum;
 				this->ajoute_avertissement(ss.str());
-				break;
+				continue;
 			}
 
 			auto &boite = boites[index_boite];
@@ -413,6 +491,7 @@ public:
 			 * total des fragments de la boîte. À FAIRE. */
 			BoiteTriangle *boite;
 			auto boite_trouvee = false;
+			auto index_boite = 0;
 
 			for (auto i = 0; i < NOMBRE_BOITE; ++i) {
 				if (boites[i].triangles.vide()) {
@@ -421,6 +500,7 @@ public:
 
 				boite = &boites[i];
 				boite_trouvee = true;
+				index_boite = i;
 				break;
 
 //				const auto probabilite_boite = boite->aire_totale / aire_totale;
@@ -437,30 +517,33 @@ public:
 			}
 
 			/* Sélectionne un triangle proportionellement à son aire. */
-			Triangle *triangle;
-			bool triangle_trouve = false;
+			Triangle *triangle = boite->triangles.premier_triangle();
+//			bool triangle_trouve = false;
 
-			for (auto tri : boite->triangles.triangles()) {
-				if (tri->jete) {
-					continue;
-				}
-
-				triangle = tri;
-				triangle_trouve = true;
-				break;
-
-//				const auto probabilite_triangle = tri.aire / boite->aire_maximum;
-
-//				if (dist(rng) <= probabilite_triangle) {
-//					triangle = &tri;
-//					triangle_trouve = true;
-//					break;
+//			for (auto tri : boite->triangles.triangles()) {
+//				if (tri->jete) {
+//					continue;
 //				}
-			}
 
-			if (!triangle_trouve) {
-				continue;
-			}
+//				triangle = tri;
+//				triangle_trouve = true;
+//				break;
+
+////				const auto probabilite_triangle = tri.aire / boite->aire_maximum;
+
+////				if (dist(rng) <= probabilite_triangle) {
+////					triangle = &tri;
+////					triangle_trouve = true;
+////					break;
+////				}
+//			}
+
+//			if (!triangle_trouve) {
+//				std::cerr << "Ne trouve pas de triangles !\n";
+//				std::cerr << "Boîte : " << index_boite << '\n';
+//				std::cerr << "Taille : " << boite->triangles.taille() << '\n';
+//				continue;
+//			}
 
 			/* Choisis un point aléatoire p sur le triangle en prenant une
 			 * coordonnée barycentrique aléatoire. */
@@ -504,8 +587,8 @@ public:
 
 			if (couvert) {
 				/* Si couvert, jète le triangle. */
-				boite->triangles.enleve(triangle);
 				boite->aire_totale -= triangle->aire;
+				boite->triangles.enleve(triangle);
 			}
 			else {
 				/* Sinon, coupe le triangle en petit morceaux, et ajoute ceux
@@ -529,7 +612,7 @@ public:
 
 					const auto aire = calcule_aire(triangle_fils[i]);
 
-					if (aire <= seuil_aire) {
+					if (std::abs(aire - seuil_aire) <= std::numeric_limits<float>::epsilon()) {
 						boite->aire_totale -= aire;
 						continue;
 					}
