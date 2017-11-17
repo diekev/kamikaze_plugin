@@ -72,8 +72,6 @@ struct int3 {
 	}
 };
 
-#define HASH_SPATIAL
-
 struct HashSpatial {
 	std::map<int3, std::vector<glm::vec3>> m_tableau;
 	float m_taille = 1.0f;
@@ -116,8 +114,6 @@ struct Triangle {
 	glm::vec3 v1 = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::vec3 v2 = glm::vec3(0.0f, 0.0f, 0.0f);
 	float aire = 0.0f;
-	bool jete = false;
-	size_t index = 0;
 	Triangle *precedent = nullptr, *suivant = nullptr;
 
 	Triangle() = default;
@@ -131,7 +127,7 @@ struct Triangle {
 	}
 };
 
-float calcule_aire(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
+static float calcule_aire(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
 {
 	const auto c1 = v1 - v0;
 	const auto c2 = v2 - v0;
@@ -139,70 +135,35 @@ float calcule_aire(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2
 	return glm::length(glm::cross(c1, c2)) * 0.5f;
 }
 
-float calcule_aire(const Triangle &triangle)
+static float calcule_aire(const Triangle &triangle)
 {
-	const auto c1 = triangle.v1 - triangle.v0;
-	const auto c2 = triangle.v2 - triangle.v0;
-
-	return glm::length(glm::cross(c1, c2)) * 0.5f;
+	return calcule_aire(triangle.v0, triangle.v1, triangle.v2);
 }
 
 class ListeTriangle {
-	std::vector<Triangle *> m_triangles{};
-	std::stack<int, std::vector<int>> m_pile_index{};
-
-	int m_nombre_triangles = 0;
-
 	Triangle *m_premier_triangle = nullptr;
 	Triangle *m_dernier_triangle = nullptr;
 
 public:
 	ListeTriangle() = default;
-
-	~ListeTriangle()
-	{
-		for (Triangle *triangle : m_triangles) {
-			delete triangle;
-		}
-	}
+	~ListeTriangle() = default;
 
 	Triangle *ajoute(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
 	{
-		Triangle *triangle;
+		Triangle *triangle = new Triangle(v0, v1, v2);
+		triangle->aire = calcule_aire(*triangle);
+		triangle->precedent = nullptr;
+		triangle->suivant = nullptr;
 
-		if (m_pile_index.empty()) {
-			triangle = new Triangle(v0, v1, v2);
-			triangle->index = m_triangles.size();
-			triangle->aire = calcule_aire(*triangle);
-			triangle->precedent = nullptr;
-			triangle->suivant = nullptr;
-
-			if (m_premier_triangle == nullptr) {
-				m_premier_triangle = triangle;
-			}
-			else {
-				triangle->precedent = m_dernier_triangle;
-				m_dernier_triangle->suivant = triangle;
-			}
-
-			m_dernier_triangle = triangle;
-
-			//m_triangles.push_back(triangle);
+		if (m_premier_triangle == nullptr) {
+			m_premier_triangle = triangle;
 		}
 		else {
-			auto index = m_pile_index.top();
-			m_pile_index.pop();
-
-			triangle = m_triangles[index];
-			triangle->index = index;
-			triangle->v0 = v0;
-			triangle->v1 = v1;
-			triangle->v2 = v2;
-			triangle->aire = calcule_aire(*triangle);
-			triangle->jete = false;
+			triangle->precedent = m_dernier_triangle;
+			m_dernier_triangle->suivant = triangle;
 		}
 
-		++m_nombre_triangles;
+		m_dernier_triangle = triangle;
 
 		return triangle;
 	}
@@ -232,41 +193,13 @@ public:
 				m_dernier_triangle->precedent = nullptr;
 			}
 		}
-//		auto index = triangle->index;
-//		auto size = m_triangles.size();
 
-//		if (m_triangles[index] != m_triangles[size - 1]){
-//			assert(triangle == m_triangles[index]);
-
-//			m_triangles[index] = m_triangles[size - 1];
-//			m_triangles[m_nombre_triangles - 1] = triangle;
-//			m_triangles[index]->index = index;
-
-//			assert(triangle != m_triangles[index]);
-//		}
-
-//		m_triangles.pop_back();
 		delete triangle;
-
-//		triangle->jete = true;
-//		m_pile_index.push(triangle->index);
-//		--m_nombre_triangles;
-
 	}
 
 	Triangle *premier_triangle()
 	{
 		return m_premier_triangle;
-	}
-
-	size_t taille() const
-	{
-		return m_nombre_triangles;
-	}
-
-	std::vector<Triangle *> &triangles()
-	{
-		return m_triangles;
 	}
 
 	bool vide() const
@@ -291,7 +224,6 @@ void ajoute_triangle_boite(BoiteTriangle *boite, const glm::vec3 &v0, const glm:
 	boite->aire_totale += triangle->aire;
 }
 
-#ifdef HASH_SPATIAL
 bool verifie_distance_minimal(HashSpatial &hash, const glm::vec3 &point, float distance)
 {
 	const auto points = hash.particules(point);
@@ -325,38 +257,6 @@ bool triangle_couvert(const Triangle &triangle, HashSpatial &hash, const float r
 
 	return false;
 }
-#else
-/* À FAIRE : à optimiser avec une table de hachage grille spatiale ou un arbre-KD. */
-bool verifie_distance_minimal(const PointList &points, const glm::vec3 &point, float distance)
-{
-	for (auto p = 0ul; p < points.size(); ++p) {
-		if (glm::length(point - points[p]) < distance) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-/* À FAIRE : à optimiser avec une table de hachage grille spatiale ou un arbre-KD. */
-bool triangle_couvert(const Triangle &triangle, const PointList &points, const float radius)
-{
-	for (auto p = 0ul; p < points.size(); ++p) {
-		const auto &v0 = triangle.v0;
-		const auto &v1 = triangle.v1;
-		const auto &v2 = triangle.v2;
-
-		if (glm::length(v0 - points[p]) <= radius
-			&& glm::length(v1 - points[p]) <= radius
-			&& glm::length(v2 - points[p]) <= radius)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-#endif
 
 class OperateurTirageFleche : public Operateur {
 public:
@@ -408,16 +308,6 @@ public:
 		/* Convertis le maillage en triangles. */
 		const auto points = maillage_entree->points();
 		const auto polygones = maillage_entree->polys();
-//		auto nombre_triangles = 0ul;
-
-//		for (auto i = 0ul; i < polygones->size(); ++i) {
-//			const auto polygone = (*polygones)[i];
-
-//			nombre_triangles += ((polygone[3] == INVALID_INDEX) ? 1 : 2);
-//		}
-
-//		std::vector<Triangle> triangles;
-//		triangles.reserve(nombre_triangles);
 
 		auto aire_minimum = std::numeric_limits<float>::max();
 		auto aire_maximum = 0.0f;
@@ -448,56 +338,8 @@ public:
 			}
 		}
 
-		if (aire_minimum <= 0.0f) {
-			std::stringstream ss;
-			ss << "Erreur : l'aire minimale est inférieure ou égale à 0 !";
-			ss << "\n   Aire minimale : " << aire_minimum;
-			this->ajoute_avertissement(ss.str());
-			return;
-		}
-
-		if (aire_maximum <= 0.0f) {
-			std::stringstream ss;
-			ss << "Erreur : l'aire maximale est inférieure ou égale à 0 !";
-			ss << "\n   Aire maximale : " << aire_maximum;
-			this->ajoute_avertissement(ss.str());
-			return;
-		}
-
-		if (aire_maximum < aire_minimum) {
-			std::stringstream ss;
-			ss << "Erreur : l'aire maximale est inférieure à l'aire minimale !";
-			ss << "\n   Aire minimale : " << aire_minimum;
-			ss << "\n   Aire maximale : " << aire_maximum;
-			this->ajoute_avertissement(ss.str());
-			return;
-		}
-
 		/* Place les triangles dans les boites. */
 		BoiteTriangle boites[NOMBRE_BOITE];
-
-//		for (auto i = 0ul; i < nombre_triangles; ++i) {
-//			const auto &triangle = triangles[i];
-
-//			const auto index_boite = static_cast<int>(std::log2(aire_maximum / std::abs(triangle.aire)));
-
-//			if (index_boite < 0 || index_boite >= 64) {
-//				std::stringstream ss;
-//				ss << "Erreur lors de la génération de l'index d'une boîte !";
-//				ss << "\n   Index : " << index_boite;
-//				ss << "\n   Aire triangle : " << triangle.aire;
-//				ss << "\n   Aire totale : " << aire_maximum;
-//				this->ajoute_avertissement(ss.str());
-//				continue;
-//			}
-
-//			auto &boite = boites[index_boite];
-
-//			boite.triangles.ajoute(triangle.v0, triangle.v1, triangle.v2);
-//			boite.aire_minimum = std::min(boite.aire_minimum, triangle.aire);
-//			boite.aire_maximum = 2 * boite.aire_minimum;
-//			boite.aire_totale += triangle.aire;
-//		}
 
 		for (auto i = 0ul; i < polygones->size(); ++i) {
 			const auto polygone = (*polygones)[i];
@@ -560,9 +402,7 @@ public:
 		std::mt19937 rng(19937 + graine);
 		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-#ifdef HASH_SPATIAL
 		HashSpatial hash;
-#endif
 
 		/* Tant qu'il reste des triangles à remplir... */
 		while (true) {
@@ -643,26 +483,16 @@ public:
 			auto point = v0 + r * e0 + s * e1;
 
 			/* Vérifie que le point respecte la condition de distance minimal */
-#ifdef HASH_SPATIAL
 			auto ok = verifie_distance_minimal(hash, point, distance);
-#else
-			auto ok = verifie_distance_minimal(*points_nuage, point, distance);
-#endif
 
 			if (ok) {
-#ifdef HASH_SPATIAL
 				hash.ajoute(point);
-#endif
 				points_nuage->push_back(point);
 			}
 
 			/* Vérifie si le triangle est complétement couvert par un point de
 			 * l'ensemble. */
-#ifdef HASH_SPATIAL
 			auto couvert = triangle_couvert(*triangle, hash, distance);
-#else
-			auto couvert = triangle_couvert(*triangle, *points_nuage, distance);
-#endif
 
 			if (couvert) {
 				/* Si couvert, jète le triangle. */
@@ -696,11 +526,7 @@ public:
 						continue;
 					}
 
-#ifdef HASH_SPATIAL
 					couvert = triangle_couvert(triangle_fils[i], hash, distance);
-#else
-					couvert = triangle_couvert(triangle_fils[i], *points_nuage, distance);
-#endif
 
 					if (couvert) {
 						continue;
