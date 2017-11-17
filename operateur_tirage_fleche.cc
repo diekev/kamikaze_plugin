@@ -38,6 +38,11 @@
  * http://peterwonka.net/Publications/pdfs/2009.EGSR.Cline.PoissonSamplingOnSurfaces.pdf
  */
 
+/* La densité de l'arrangement de cercles ayant la plus grande densité, selon
+ * Lagrange. C'est-à-dire le pourcentage d'aire qu'occuperait un arrangement de
+ * cercle étant le plus compacte. */
+static constexpr auto DENSITE_CERCLE = 0.9068996821171089;
+
 static constexpr auto NOMBRE_BOITE = 64;
 
 static const char *NOM_OPERATEUR = "Tirage de flèche";
@@ -126,12 +131,20 @@ struct Triangle {
 	}
 };
 
+float calcule_aire(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
+{
+	const auto c1 = v1 - v0;
+	const auto c2 = v2 - v0;
+
+	return glm::length(glm::cross(c1, c2)) * 0.5f;
+}
+
 float calcule_aire(const Triangle &triangle)
 {
 	const auto c1 = triangle.v1 - triangle.v0;
 	const auto c2 = triangle.v2 - triangle.v0;
 
-	return glm::abs(glm::length(glm::cross(c1, c2)) * 0.5f);
+	return glm::length(glm::cross(c1, c2)) * 0.5f;
 }
 
 class ListeTriangle {
@@ -160,7 +173,18 @@ public:
 		if (m_pile_index.empty()) {
 			triangle = new Triangle(v0, v1, v2);
 			triangle->index = m_triangles.size();
-			triangle->precedent = m_dernier_triangle;
+			triangle->aire = calcule_aire(*triangle);
+			triangle->precedent = nullptr;
+			triangle->suivant = nullptr;
+
+			if (m_premier_triangle == nullptr) {
+				m_premier_triangle = triangle;
+			}
+			else {
+				triangle->precedent = m_dernier_triangle;
+				m_dernier_triangle->suivant = triangle;
+			}
+
 			m_dernier_triangle = triangle;
 
 			//m_triangles.push_back(triangle);
@@ -174,6 +198,7 @@ public:
 			triangle->v0 = v0;
 			triangle->v1 = v1;
 			triangle->v2 = v2;
+			triangle->aire = calcule_aire(*triangle);
 			triangle->jete = false;
 		}
 
@@ -184,8 +209,11 @@ public:
 
 	void enleve(Triangle *triangle)
 	{
-		if (triangle != m_premier_triangle && triangle != m_dernier_triangle) {
+		if (triangle->precedent) {
 			triangle->precedent->suivant = triangle->suivant;
+		}
+
+		if (triangle->suivant) {
 			triangle->suivant->precedent = triangle->precedent;
 		}
 
@@ -254,6 +282,14 @@ struct BoiteTriangle {
 
 	ListeTriangle triangles;
 };
+
+void ajoute_triangle_boite(BoiteTriangle *boite, const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
+{
+	auto triangle = boite->triangles.ajoute(v0, v1, v2);
+	boite->aire_minimum = std::min(boite->aire_minimum, triangle->aire);
+	boite->aire_maximum = 2 * boite->aire_minimum;
+	boite->aire_totale += triangle->aire;
+}
 
 #ifdef HASH_SPATIAL
 bool verifie_distance_minimal(HashSpatial &hash, const glm::vec3 &point, float distance)
@@ -372,48 +408,43 @@ public:
 		/* Convertis le maillage en triangles. */
 		const auto points = maillage_entree->points();
 		const auto polygones = maillage_entree->polys();
-		auto nombre_triangles = 0ul;
+//		auto nombre_triangles = 0ul;
 
-		for (auto i = 0ul; i < polygones->size(); ++i) {
-			const auto polygone = (*polygones)[i];
+//		for (auto i = 0ul; i < polygones->size(); ++i) {
+//			const auto polygone = (*polygones)[i];
 
-			nombre_triangles += ((polygone[3] == INVALID_INDEX) ? 1 : 2);
-		}
+//			nombre_triangles += ((polygone[3] == INVALID_INDEX) ? 1 : 2);
+//		}
+
+//		std::vector<Triangle> triangles;
+//		triangles.reserve(nombre_triangles);
 
 		auto aire_minimum = std::numeric_limits<float>::max();
 		auto aire_maximum = 0.0f;
 		auto aire_totale = 0.0f;
 
-		std::vector<Triangle> triangles;
-		triangles.reserve(nombre_triangles);
-
+		/* Calcule les informations sur les aires. */
 		for (auto i = 0ul; i < polygones->size(); ++i) {
 			const auto polygone = (*polygones)[i];
 
-			Triangle triangle;
-			triangle.v0 = (*points)[polygone[0]];
-			triangle.v1 = (*points)[polygone[1]];
-			triangle.v2 = (*points)[polygone[2]];
-			triangle.aire = calcule_aire(triangle);
+			auto aire = calcule_aire(
+					(*points)[polygone[0]],
+					(*points)[polygone[1]],
+					(*points)[polygone[2]]);
 
-			aire_minimum = std::min(aire_minimum, triangle.aire);
-			aire_maximum = std::max(aire_maximum, triangle.aire);
-			aire_totale += triangle.aire;
-
-			triangles.emplace_back(triangle);
+			aire_minimum = std::min(aire_minimum, aire);
+			aire_maximum = std::max(aire_maximum, aire);
+			aire_totale += aire;
 
 			if (polygone[3] != INVALID_INDEX) {
-				Triangle triangle2;
-				triangle2.v0 = (*points)[polygone[0]];
-				triangle2.v1 = (*points)[polygone[2]];
-				triangle2.v2 = (*points)[polygone[3]];
-				triangle2.aire = calcule_aire(triangle);
+				aire = calcule_aire(
+						(*points)[polygone[0]],
+						(*points)[polygone[2]],
+						(*points)[polygone[3]]);
 
-				aire_minimum = std::min(aire_minimum, triangle2.aire);
-				aire_maximum = std::max(aire_maximum, triangle2.aire);
-				aire_totale += triangle2.aire;
-
-				triangles.emplace_back(triangle2);
+				aire_minimum = std::min(aire_minimum, aire);
+				aire_maximum = std::max(aire_maximum, aire);
+				aire_totale += aire;
 			}
 		}
 
@@ -445,41 +476,89 @@ public:
 		/* Place les triangles dans les boites. */
 		BoiteTriangle boites[NOMBRE_BOITE];
 
-		for (auto i = 0ul; i < nombre_triangles; ++i) {
-			const auto &triangle = triangles[i];
+//		for (auto i = 0ul; i < nombre_triangles; ++i) {
+//			const auto &triangle = triangles[i];
 
-			const auto index_boite = static_cast<int>(std::log2(aire_maximum / std::abs(triangle.aire)));
+//			const auto index_boite = static_cast<int>(std::log2(aire_maximum / std::abs(triangle.aire)));
+
+//			if (index_boite < 0 || index_boite >= 64) {
+//				std::stringstream ss;
+//				ss << "Erreur lors de la génération de l'index d'une boîte !";
+//				ss << "\n   Index : " << index_boite;
+//				ss << "\n   Aire triangle : " << triangle.aire;
+//				ss << "\n   Aire totale : " << aire_maximum;
+//				this->ajoute_avertissement(ss.str());
+//				continue;
+//			}
+
+//			auto &boite = boites[index_boite];
+
+//			boite.triangles.ajoute(triangle.v0, triangle.v1, triangle.v2);
+//			boite.aire_minimum = std::min(boite.aire_minimum, triangle.aire);
+//			boite.aire_maximum = 2 * boite.aire_minimum;
+//			boite.aire_totale += triangle.aire;
+//		}
+
+		for (auto i = 0ul; i < polygones->size(); ++i) {
+			const auto polygone = (*polygones)[i];
+
+			auto aire = calcule_aire(
+					(*points)[polygone[0]],
+					(*points)[polygone[1]],
+					(*points)[polygone[2]]);
+
+			const auto index_boite = static_cast<int>(std::log2(aire_maximum / aire));
 
 			if (index_boite < 0 || index_boite >= 64) {
 				std::stringstream ss;
 				ss << "Erreur lors de la génération de l'index d'une boîte !";
 				ss << "\n   Index : " << index_boite;
-				ss << "\n   Aire triangle : " << triangle.aire;
+				ss << "\n   Aire triangle : " << aire;
 				ss << "\n   Aire totale : " << aire_maximum;
 				this->ajoute_avertissement(ss.str());
 				continue;
 			}
 
-			auto &boite = boites[index_boite];
+			ajoute_triangle_boite(&boites[index_boite], (*points)[polygone[0]], (*points)[polygone[1]], (*points)[polygone[2]]);
 
-			boite.triangles.ajoute(triangle.v0, triangle.v1, triangle.v2);
-			boite.aire_minimum = std::min(boite.aire_minimum, triangle.aire);
-			boite.aire_maximum = 2 * boite.aire_minimum;
-			boite.aire_totale += triangle.aire;
+			if (polygone[3] != INVALID_INDEX) {
+				aire = calcule_aire(
+						(*points)[polygone[0]],
+						(*points)[polygone[2]],
+						(*points)[polygone[3]]);
+
+				const auto index_boite = static_cast<int>(std::log2(aire_maximum / aire));
+
+				if (index_boite < 0 || index_boite >= 64) {
+					std::stringstream ss;
+					ss << "Erreur lors de la génération de l'index d'une boîte !";
+					ss << "\n   Index : " << index_boite;
+					ss << "\n   Aire triangle : " << aire;
+					ss << "\n   Aire totale : " << aire_maximum;
+					this->ajoute_avertissement(ss.str());
+					continue;
+				}
+
+				ajoute_triangle_boite(&boites[index_boite], (*points)[polygone[0]], (*points)[polygone[2]], (*points)[polygone[3]]);
+			}
 		}
-
-		triangles.clear();
-
-		auto nuage_points = static_cast<PrimPoints *>(m_collection->build("PrimPoints"));
-		auto points_nuage = nuage_points->points();
-
-		const auto graine = eval_int("graine");
-		std::mt19937 rng(19937 + graine);
-		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 		/* Ne considère que les triangles dont l'aire est supérieure à ce seuil. */
 		const auto seuil_aire = aire_minimum / 10000.0f;
 		const auto distance = eval_float("distance");
+
+		/* Calcule le nombre maximum de point. */
+		const auto aire_cercle = M_PI * (distance * 0.5f) * (distance * 0.5f);
+		const auto nombre_points = (aire_totale * DENSITE_CERCLE) / aire_cercle;
+		std::cerr << "Nombre points prédits : " << nombre_points << '\n';
+
+		auto nuage_points = static_cast<PrimPoints *>(m_collection->build("PrimPoints"));
+		auto points_nuage = nuage_points->points();
+		points_nuage->reserve(nombre_points);
+
+		const auto graine = eval_int("graine");
+		std::mt19937 rng(19937 + graine);
+		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 #ifdef HASH_SPATIAL
 		HashSpatial hash;
