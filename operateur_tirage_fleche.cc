@@ -51,61 +51,72 @@ static const char *AIDE_OPERATEUR =
 
 /* ************************************************************************** */
 
-struct int3 {
-	size_t x, y, z;
+struct HachageSpatial {
+	std::unordered_map<std::size_t, std::vector<glm::vec3>> m_tableau;
 
-	bool operator<(const int3 &autre) const
-	{
-		if (x < autre.x) {
-			return true;
-		}
+	/**
+	 * La taille maximum recommandée par la publication de Cline et al. est de
+	 * 20 000. Cependant, les fonctions de hachage marche mieux quand la taille
+	 * est un nombre premier ("Introduction to Algorithms", ISBN 0-262-03141-8),
+	 * donc nous prenons le nombre premier le plus proche de 20 000.
+	 */
+	static constexpr auto TAILLE_MAX = 19997;
 
-		if (x == autre.x && y < autre.y) {
-			return true;
-		}
+	/**
+	 * Fonction de hachage repris de "Optimized Spatial Hashing for Collision
+	 * Detection of Deformable Objects"
+	 * http://www.beosil.com/download/CollisionDetectionHashing_VMV03.pdf
+	 *
+	 * Pour calculer l'empreinte d'une position, nous considérons la partie
+	 * entière de celle-ci. Par exemple, le vecteur position <0.1, 0.2, 0.3>
+	 * deviendra <0, 0, 0> ; de même pour le vecteur <0.4, 0.5, 0.6>. Ainsi,
+	 * toutes les positions se trouvant entre <0, 0, 0> et
+	 * <0.99.., 0.99.., 0.99..> seront dans la même alvéole.
+	 */
+	std::size_t fonction_empreinte(const glm::vec3 &position);
 
-		if (x == autre.x && y == autre.y && z < autre.z) {
-			return true;
-		}
+	/**
+	 * Ajoute la posistion spécifiée dans le vecteur des positions ayant la même
+	 * empreinte que celle-ci.
+	 */
+	void ajoute(const glm::vec3 &position);
 
-		return false;
-	}
+	/**
+	 * Retourne un vecteur contenant les positions ayant la même empreinte que
+	 * la position passée en paramètre.
+	 */
+	const std::vector<glm::vec3> &particules(const glm::vec3 &position);
+
+	/**
+	 * Retourne le nombre d'alvéoles présentes dans la table de hachage.
+	 */
+	size_t taille() const;
 };
 
-struct HashSpatial {
-	std::map<int3, std::vector<glm::vec3>> m_tableau;
-	float m_taille = 1.0f;
-	float m_taille_inverse = 1.0f;
-	size_t m_nombre_cellule;
+std::size_t HachageSpatial::fonction_empreinte(const glm::vec3 &position)
+{
+	return static_cast<std::size_t>(
+				static_cast<int>(position.x) * 73856093
+				^ static_cast<int>(position.y) * 19349663
+				^ static_cast<int>(position.z) * 83492791) % TAILLE_MAX;
+}
 
-	int3 fonction_hash(const glm::vec3 &particle)
-	{
-		int3 ret;
+void HachageSpatial::ajoute(const glm::vec3 &position)
+{
+	const auto empreinte = fonction_empreinte(position);
+	m_tableau[empreinte].push_back(position);
+}
 
-		ret.x = static_cast<size_t>(particle.x * m_taille_inverse);
-		ret.y = static_cast<size_t>(particle.y * m_taille_inverse);
-		ret.z = static_cast<size_t>(particle.z * m_taille_inverse);
+const std::vector<glm::vec3> &HachageSpatial::particules(const glm::vec3 &position)
+{
+	const auto empreinte = fonction_empreinte(position);
+	return m_tableau[empreinte];
+}
 
-		return ret;
-	}
-
-	void ajoute(const glm::vec3 &particle)
-	{
-		auto hash = fonction_hash(particle);
-		m_tableau[hash].push_back(particle);
-	}
-
-	const std::vector<glm::vec3> &particules(const glm::vec3 &particule)
-	{
-		auto hash = fonction_hash(particule);
-		return m_tableau[hash];
-	}
-
-	size_t taille() const
-	{
-		return m_tableau.size();
-	}
-};
+size_t HachageSpatial::taille() const
+{
+	return m_tableau.size();
+}
 
 /* ************************************************************************** */
 
@@ -224,9 +235,9 @@ void ajoute_triangle_boite(BoiteTriangle *boite, const glm::vec3 &v0, const glm:
 	boite->aire_totale += triangle->aire;
 }
 
-bool verifie_distance_minimal(HashSpatial &hash, const glm::vec3 &point, float distance)
+bool verifie_distance_minimal(HachageSpatial &hachage_spatial, const glm::vec3 &point, float distance)
 {
-	const auto points = hash.particules(point);
+	const auto points = hachage_spatial.particules(point);
 
 	for (auto p = 0ul; p < points.size(); ++p) {
 		if (glm::length(point - points[p]) < distance) {
@@ -237,14 +248,14 @@ bool verifie_distance_minimal(HashSpatial &hash, const glm::vec3 &point, float d
 	return true;
 }
 
-bool triangle_couvert(const Triangle &triangle, HashSpatial &hash, const float radius)
+bool triangle_couvert(const Triangle &triangle, HachageSpatial &hachage_spatial, const float radius)
 {
 	const auto &v0 = triangle.v0;
 	const auto &v1 = triangle.v1;
 	const auto &v2 = triangle.v2;
 
 	const auto centre_triangle = (v0 + v1 + v2) / 3.0f;
-	const auto points = hash.particules(centre_triangle);
+	const auto points = hachage_spatial.particules(centre_triangle);
 
 	for (auto p = 0ul; p < points.size(); ++p) {
 		if (glm::length(v0 - points[p]) <= radius
@@ -402,7 +413,7 @@ public:
 		std::mt19937 rng(19937 + graine);
 		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-		HashSpatial hash;
+		HachageSpatial hachage_spatial;
 
 		/* Tant qu'il reste des triangles à remplir... */
 		while (true) {
@@ -483,16 +494,16 @@ public:
 			auto point = v0 + r * e0 + s * e1;
 
 			/* Vérifie que le point respecte la condition de distance minimal */
-			auto ok = verifie_distance_minimal(hash, point, distance);
+			auto ok = verifie_distance_minimal(hachage_spatial, point, distance);
 
 			if (ok) {
-				hash.ajoute(point);
+				hachage_spatial.ajoute(point);
 				points_nuage->push_back(point);
 			}
 
 			/* Vérifie si le triangle est complétement couvert par un point de
 			 * l'ensemble. */
-			auto couvert = triangle_couvert(*triangle, hash, distance);
+			auto couvert = triangle_couvert(*triangle, hachage_spatial, distance);
 
 			if (couvert) {
 				/* Si couvert, jète le triangle. */
@@ -526,7 +537,7 @@ public:
 						continue;
 					}
 
-					couvert = triangle_couvert(triangle_fils[i], hash, distance);
+					couvert = triangle_couvert(triangle_fils[i], hachage_spatial, distance);
 
 					if (couvert) {
 						continue;
@@ -547,7 +558,7 @@ public:
 		}
 
 		std::cerr << "Nombre de points : " << points_nuage->size() << "\n";
-		std::cerr << "Taille hash : " << hash.taille() << '\n';
+		std::cerr << "Nombre d'alvéoles : " << hachage_spatial.taille() << '\n';
 	}
 };
 
