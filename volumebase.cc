@@ -150,10 +150,10 @@ struct TreeTopologyOp {
 };
 
 TreeTopology::TreeTopology(openvdb::GridBase::ConstPtr grid)
-    : m_buffer_data(ego::BufferObject::create())
+    : m_buffer_data(numero7::ego::BufferObject::create())
 {
-	m_program.load(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/tree_topology.vert"));
-	m_program.load(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/tree_topology.frag"));
+	m_program.load(numero7::ego::VERTEX_SHADER, numero7::ego::util::str_from_file("shaders/tree_topology.vert"));
+	m_program.load(numero7::ego::FRAGMENT_SHADER, numero7::ego::util::str_from_file("shaders/tree_topology.frag"));
 
 	m_program.createAndLinkProgram();
 
@@ -275,7 +275,7 @@ void VDBVolume::prepareRenderData()
 		                                  &op.normals[0],
 		                                  op.normals.size() * sizeof(GLfloat));
 
-		ego::util::GPU_check_errors("Unable to create level set buffer");
+		numero7::ego::util::GPU_check_errors("Unable to create level set buffer");
 	}
 	else {
 #if 0
@@ -290,7 +290,7 @@ void VDBVolume::prepareRenderData()
 
 		process_grid_real(m_grid, m_storage, op);
 
-		m_volume_texture = ego::Texture3D::create(0);
+		m_volume_texture = numero7::ego::Texture3D::create(0);
 		m_volume_texture->bind();
 		m_volume_texture->setType(GL_FLOAT, GL_RED, GL_RED);
 		m_volume_texture->setMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
@@ -299,7 +299,7 @@ void VDBVolume::prepareRenderData()
 		m_volume_texture->generateMipMap(0, 4);
 		m_volume_texture->unbind();
 
-		ego::util::GPU_check_errors("Unable to create 3D texture");
+		numero7::ego::util::GPU_check_errors("Unable to create 3D texture");
 
 		loadShader();
 #endif
@@ -329,8 +329,8 @@ Primitive *VDBVolume::copy() const
 void VDBVolume::loadShader()
 {
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
-		m_renderbuffer->set_shader_source(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/object.vert"));
-		m_renderbuffer->set_shader_source(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/object.frag"));
+		m_renderbuffer->set_shader_source(numero7::ego::VERTEX_SHADER, numero7::ego::util::str_from_file("shaders/object.vert"));
+		m_renderbuffer->set_shader_source(numero7::ego::FRAGMENT_SHADER, numero7::ego::util::str_from_file("shaders/object.frag"));
 		m_renderbuffer->finalize_shader();
 
 		ProgramParams params;
@@ -345,8 +345,8 @@ void VDBVolume::loadShader()
 		m_renderbuffer->set_shader_params(params);
 	}
 	else {
-		m_renderbuffer->set_shader_source(ego::VERTEX_SHADER, ego::util::str_from_file("shaders/volume.vert"));
-		m_renderbuffer->set_shader_source(ego::FRAGMENT_SHADER, ego::util::str_from_file("shaders/volume.frag"));
+		m_renderbuffer->set_shader_source(numero7::ego::VERTEX_SHADER, numero7::ego::util::str_from_file("shaders/volume.vert"));
+		m_renderbuffer->set_shader_source(numero7::ego::FRAGMENT_SHADER, numero7::ego::util::str_from_file("shaders/volume.frag"));
 		m_renderbuffer->finalize_shader();
 
 		ProgramParams params;
@@ -373,7 +373,7 @@ void VDBVolume::loadShader()
 		const auto &vsize = MAX_SLICES * 4 * sizeof(glm::vec3);
 		const auto &isize = MAX_SLICES * 6 * sizeof(GLuint);
 
-		m_buffer_data.reset(new ego::BufferObject());
+		m_buffer_data.reset(new numero7::ego::BufferObject());
 		m_buffer_data->bind();
 		m_buffer_data->generateVertexBuffer(nullptr, vsize);
 		m_buffer_data->generateIndexBuffer(nullptr, isize);
@@ -472,7 +472,7 @@ void VDBVolume::render(const ViewerContext &context)
 	}
 
 	if (m_grid->getGridClass() == openvdb::GridClass::GRID_LEVEL_SET) {
-		ego::Program *program = m_renderbuffer->program();
+		numero7::ego::Program *program = m_renderbuffer->program();
 		program->enable();
 		program->uniform("color", 1.0f, 1.0f, 1.0f);
 		program->disable();
@@ -604,7 +604,7 @@ void Volume::loadTransferFunction()
 		}
 	}
 
-	m_transfer_texture = ego::Texture1D::create(m_num_textures++);
+	m_transfer_texture = numero7::ego::Texture1D::create(m_num_textures++);
 	m_transfer_texture->bind();
 	m_transfer_texture->setType(GL_FLOAT, GL_RGB, GL_RGB);
 	m_transfer_texture->setMinMagFilter(GL_LINEAR, GL_LINEAR);
