@@ -207,6 +207,7 @@ VDBVolume::~VDBVolume()
 
 void VDBVolume::setGrid(openvdb::GridBase::Ptr grid)
 {
+	m_draw_topology = false;
 	m_grid = grid;
 	m_volume_matrix = m_grid->transform().baseMap()->getAffineMap()->getMat4();
 	m_storage = get_grid_storage(*m_grid);
@@ -278,11 +279,10 @@ void VDBVolume::prepareRenderData()
 		numero7::ego::util::GPU_check_errors("Unable to create level set buffer");
 	}
 	else {
-#if 0
 		m_elements = m_num_slices * 6;
 
 		/* Get resolution & copy data */
-		openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+		const auto bbox = m_grid->evalActiveVoxelBoundingBox();
 
 		SparseToDenseOp op;
 		op.bbox = bbox;
@@ -290,19 +290,18 @@ void VDBVolume::prepareRenderData()
 
 		process_grid_real(m_grid, m_storage, op);
 
-		m_volume_texture = numero7::ego::Texture3D::create(0);
-		m_volume_texture->bind();
-		m_volume_texture->setType(GL_FLOAT, GL_RED, GL_RED);
-		m_volume_texture->setMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
-		m_volume_texture->setWrapping(GL_CLAMP_TO_BORDER);
-		m_volume_texture->fill(op.data, bbox.dim().asPointer());
-		m_volume_texture->generateMipMap(0, 4);
-		m_volume_texture->unbind();
+		auto texture = m_renderbuffer->add_texture_3D();
+		texture->bind();
+		texture->setType(GL_FLOAT, GL_RED, GL_RED);
+		texture->setMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
+		texture->setWrapping(GL_CLAMP_TO_BORDER);
+		texture->fill(op.data, bbox.dim().asPointer());
+		texture->generateMipMap(0, 4);
+		texture->unbind();
 
-		numero7::ego::util::GPU_check_errors("Unable to create 3D texture");
+		numero7::ego::util::GPU_check_errors("Erreur lors de la création de la texture 3D");
 
 		loadShader();
-#endif
 	}
 
 	m_need_data_update = false;
@@ -347,39 +346,30 @@ void VDBVolume::loadShader()
 	else {
 		m_renderbuffer->set_shader_source(numero7::ego::VERTEX_SHADER, numero7::ego::util::str_from_file("shaders/volume.vert"));
 		m_renderbuffer->set_shader_source(numero7::ego::FRAGMENT_SHADER, numero7::ego::util::str_from_file("shaders/volume.frag"));
+
 		m_renderbuffer->finalize_shader();
 
 		ProgramParams params;
 		params.add_attribute("vertex");
 		params.add_uniform("MVP");
 		params.add_uniform("offset");
+		params.add_uniform("dimension");
 		params.add_uniform("volume");
-		params.add_uniform("lut");
-		params.add_uniform("use_lut");
-		params.add_uniform("scale");
 		params.add_uniform("matrix");
 
 		m_renderbuffer->set_shader_params(params);
 
-#if 0
-		m_program.enable();
+		numero7::ego::Texture3D *texture = m_renderbuffer->add_texture_3D();
+
+		auto program = m_renderbuffer->program();
+
+		program->enable();
 		{
-			glUniform1i(m_program("volume"), m_volume_texture->number());
-//			glUniform1i(m_program("lut"), m_transfer_texture->number());
-			glUniform1f(m_program("scale"), m_value_scale);
+			program->uniform("volume", texture->number());
 		}
-		m_program.disable();
+		program->disable();
 
-		const auto &vsize = MAX_SLICES * 4 * sizeof(glm::vec3);
-		const auto &isize = MAX_SLICES * 6 * sizeof(GLuint);
-
-		m_buffer_data.reset(new numero7::ego::BufferObject());
-		m_buffer_data->bind();
-		m_buffer_data->generateVertexBuffer(nullptr, vsize);
-		m_buffer_data->generateIndexBuffer(nullptr, isize);
-		m_buffer_data->attribPointer(m_program["vertex"], 3);
-		m_buffer_data->unbind();
-#endif
+		numero7::ego::util::GPU_check_errors("Erreur lors de la création du nuanceur de volume");
 	}
 }
 
@@ -403,22 +393,22 @@ void VDBVolume::slice(const glm::vec3 &view_dir)
 
 	const glm::vec3 vertices[3][4] = {
 	    {
-	        glm::vec3(0.0f, m_min[1], m_min[2]),
-	        glm::vec3(0.0f, m_max[1], m_min[2]),
-	        glm::vec3(0.0f, m_max[1], m_max[2]),
-	        glm::vec3(0.0f, m_min[1], m_max[2])
+			glm::vec3(0.0f, m_min[1], m_min[2]),
+			glm::vec3(0.0f, m_max[1], m_min[2]),
+			glm::vec3(0.0f, m_max[1], m_max[2]),
+			glm::vec3(0.0f, m_min[1], m_max[2])
 	    },
 	    {
-	        glm::vec3(m_min[0], 0.0f, m_min[2]),
-	        glm::vec3(m_min[0], 0.0f, m_max[2]),
-	        glm::vec3(m_max[0], 0.0f, m_max[2]),
-	        glm::vec3(m_max[0], 0.0f, m_min[2])
+			glm::vec3(m_min[0], 0.0f, m_min[2]),
+			glm::vec3(m_min[0], 0.0f, m_max[2]),
+			glm::vec3(m_max[0], 0.0f, m_max[2]),
+			glm::vec3(m_max[0], 0.0f, m_min[2])
 	    },
 	    {
-	        glm::vec3(m_min[0], m_min[1], 0.0f),
-	        glm::vec3(m_min[0], m_max[1], 0.0f),
-	        glm::vec3(m_max[0], m_max[1], 0.0f),
-	        glm::vec3(m_max[0], m_min[1], 0.0f)
+			glm::vec3(m_min[0], m_min[1], 0.0f),
+			glm::vec3(m_min[0], m_max[1], 0.0f),
+			glm::vec3(m_max[0], m_max[1], 0.0f),
+			glm::vec3(m_max[0], m_min[1], 0.0f)
 	    }
 	};
 
@@ -455,8 +445,15 @@ void VDBVolume::slice(const glm::vec3 &view_dir)
 		idx += 4;
 	}
 
-	//m_buffer_data->updateVertexBuffer(&vertices[0][0], points.size() * sizeof(glm::vec3));
-	//m_buffer_data->updateIndexBuffer(indices, idx_count * sizeof(GLuint));
+	m_renderbuffer->set_vertex_buffer(
+				"vertex",
+				points.data(),
+				points.size() * sizeof(glm::vec3),
+				indices,
+				idx_count * sizeof(GLuint),
+				idx_count);
+
+	numero7::ego::util::GPU_check_errors("Error creating buffer\n");
 
 	delete [] indices;
 }
@@ -480,33 +477,25 @@ void VDBVolume::render(const ViewerContext &context)
 		m_renderbuffer->render(context);
 	}
 	else {
-#if 0
 		slice(context.view());
+
+		auto program = m_renderbuffer->program();
+
+		program->enable();
+		{
+			auto min = m_min * glm::mat3(m_inv_matrix);
+			auto dim = m_dimensions * glm::mat3(m_inv_matrix);
+			program->uniform("offset", min[0], min[1], min[2]);
+			program->uniform("dimension", dim[0], dim[1], dim[2]);
+		}
+		program->disable();
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		if (m_program.isValid()) {
-			m_program.enable();
-			m_buffer_data->bind();
-			m_volume_texture->bind();
-//			m_transfer_texture->bind();
-
-			auto min = m_min * glm::mat3(m_inv_matrix);
-			glUniform3fv(m_program("offset"), 1, &min[0]);
-			glUniformMatrix4fv(m_program("MVP"), 1, GL_FALSE, glm::value_ptr(context.MVP()));
-			glUniformMatrix4fv(m_program("matrix"), 1, GL_FALSE, glm::value_ptr(m_matrix));
-//			glUniform1i(m_program("use_lut"), m_use_lut);
-			glDrawElements(GL_TRIANGLES, m_elements, GL_UNSIGNED_INT, nullptr);
-
-//			m_transfer_texture->unbind();
-			m_volume_texture->unbind();
-			m_buffer_data->unbind();
-			m_program.disable();
-		}
+		m_renderbuffer->render(context);
 
 		glDisable(GL_BLEND);
-#endif
 	}
 }
 
