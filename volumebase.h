@@ -31,8 +31,8 @@
 #include <openvdb/openvdb.h>
 
 class TreeTopology {
-	ego::BufferObject::Ptr m_buffer_data;
-	ego::Program m_program;
+	numero7::ego::BufferObject::Ptr m_buffer_data;
+	numero7::ego::Program m_program;
 	size_t m_elements;
 
 public:
@@ -47,8 +47,8 @@ class VDBVolume : public Primitive {
 
 	RenderBuffer *m_renderbuffer = nullptr;
 
-//	ego::BufferObject::Ptr m_buffer_data;
-//	ego::Program m_program;
+//	numero7::ego::BufferObject::Ptr m_buffer_data;
+//	numero7::ego::Program m_program;
 	size_t m_elements;
 
 	openvdb::GridBase::Ptr m_grid;
@@ -60,8 +60,8 @@ class VDBVolume : public Primitive {
 
 	/* for volume rendering */
 
-//	ego::Texture3D::Ptr m_volume_texture;
-//	ego::Texture1D::Ptr m_transfer_texture;
+//	numero7::ego::Texture3D::Ptr m_volume_texture;
+//	numero7::ego::Texture1D::Ptr m_transfer_texture;
 
 	int m_num_slices = 128;
 
